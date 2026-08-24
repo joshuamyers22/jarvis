@@ -79,7 +79,7 @@ jobs:
 
       - name: Auth to Azure
         if: matrix.cloud == 'azure' && vars.AZURE_IMAGE != ''
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
