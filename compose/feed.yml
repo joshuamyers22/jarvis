@@ -1,0 +1,30 @@
+# =============================================================================
+# Feed node: the long-running websocket consumer.
+#
+# On its own instance on purpose. An Airflow restart must not be able to
+# interrupt the feed, and a feed OOM must not be able to take down scheduling.
+# =============================================================================
+services:
+  feed:
+    image: ${IMAGE}:${IMAGE_TAG}
+    command: ["feed"]
+    restart: always
+    stop_grace_period: 30s   # long enough for the SIGTERM handler to flush
+    environment:
+      RP_ENV: ${RP_ENV}
+      RP_STORAGE_URI: ${RP_STORAGE_URI}
+      RP_CLOUD: ${RP_CLOUD:-}
+      RP_PROJECT_ID: ${RP_PROJECT_ID:-}
+      RP_REGION: ${RP_REGION:-}
+      RP_RESOURCE_GROUP: ${RP_RESOURCE_GROUP:-}
+      RP_FEED_WS_URL: ${RP_FEED_WS_URL}
+      RP_FEED_SOURCE: ${RP_FEED_SOURCE}
+      RP_FEED_DATASET: ${RP_FEED_DATASET}
+      RP_FEED_FLUSH_SECONDS: ${RP_FEED_FLUSH_SECONDS:-60}
+      RP_FEED_FLUSH_ROWS: ${RP_FEED_FLUSH_ROWS:-10000}
+    deploy:
+      resources:
+        limits: {memory: 2G}
+    logging:
+      driver: json-file
+      options: {max-size: "50m", max-file: "5"}

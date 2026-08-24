@@ -1,0 +1,101 @@
+# =============================================================================
+# Control node: Airflow scheduler + API server. Orchestrates, never computes.
+#
+#   docker compose --env-file ../.env -f control.yml up -d
+#
+# Provider-neutral. Every cloud-specific value arrives from .env; there is no
+# branch in this file. Sized for the smallest instance each provider sells --
+# if this box needs more than 2 GB, compute is in the wrong place.
+# =============================================================================
+x-airflow-common: &airflow-common
+  image: ${IMAGE}:${IMAGE_TAG}
+  restart: unless-stopped
+  environment: &airflow-env
+    # --- database ------------------------------------------------------------
+    AIRFLOW_DB_HOST: ${AIRFLOW_DB_HOST}
+    AIRFLOW_DB_PORT: ${AIRFLOW_DB_PORT:-5432}
+    AIRFLOW_DB_USER: ${AIRFLOW_DB_USER}
+    AIRFLOW_DB_PASSWORD: ${AIRFLOW_DB_PASSWORD}
+    AIRFLOW_DB_NAME: ${AIRFLOW_DB_NAME}
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: >-
+      postgresql+psycopg2://${AIRFLOW_DB_USER}:${AIRFLOW_DB_PASSWORD}@${AIRFLOW_DB_HOST}:${AIRFLOW_DB_PORT:-5432}/${AIRFLOW_DB_NAME}
+
+    # --- core ----------------------------------------------------------------
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
+    AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "True"
+    # Dispatch tasks are IO-bound polls, so parallelism here is cheap. The real
+    # concurrency limit lives in the batch service, not on this box.
+    AIRFLOW__CORE__PARALLELISM: "32"
+    AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG: "16"
+    AIRFLOW__CORE__DEFAULT_TIMEZONE: ${RP_TIMEZONE:-UTC}
+
+    # --- remote logging ------------------------------------------------------
+    # gs:// | s3:// | wasb:// -- same three keys on every provider.
+    AIRFLOW__LOGGING__REMOTE_LOGGING: "True"
+    AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER: ${AIRFLOW_REMOTE_LOGS}
+    AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID: ${AIRFLOW_LOG_CONN_ID:-}
+    AIRFLOW__LOGGING__LOGGING_LEVEL: INFO
+
+    # --- secrets -------------------------------------------------------------
+    AIRFLOW__SECRETS__BACKEND: ${AIRFLOW_SECRETS_BACKEND:-}
+    AIRFLOW__SECRETS__BACKEND_KWARGS: ${AIRFLOW_SECRETS_KWARGS:-}
+
+    # --- scheduler -----------------------------------------------------------
+    AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL: "30"
+    AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL: "300"
+    AIRFLOW__SCHEDULER__CATCHUP_BY_DEFAULT: "False"
+
+    # --- application ---------------------------------------------------------
+    RP_ENV: ${RP_ENV}
+    RP_STORAGE_URI: ${RP_STORAGE_URI}
+    RP_CLOUD: ${RP_CLOUD:-}
+    RP_BATCH_JOB_NAME: ${RP_BATCH_JOB_NAME:-research-job}
+    RP_BATCH_JOB_QUEUE: ${RP_BATCH_JOB_QUEUE:-}
+    RP_ALERT_EMAILS: ${RP_ALERT_EMAILS:-}
+    RP_TIMEZONE: ${RP_TIMEZONE:-UTC}
+    RP_IMAGE: ${IMAGE}
+    RP_IMAGE_TAG: ${IMAGE_TAG}
+    # --- provider handles (only the relevant ones are populated) -------------
+    RP_PROJECT_ID: ${RP_PROJECT_ID:-}
+    RP_REGION: ${RP_REGION:-}
+    RP_RESOURCE_GROUP: ${RP_RESOURCE_GROUP:-}
+    RP_SUBSCRIPTION_ID: ${RP_SUBSCRIPTION_ID:-}
+    RP_AZURE_ACI_SUBNET_ID: ${RP_AZURE_ACI_SUBNET_ID:-}
+    RP_AZURE_JOB_IDENTITY_ID: ${RP_AZURE_JOB_IDENTITY_ID:-}
+    PYTHONPATH: /opt/airflow:/app
+  volumes:
+    # Local development credentials only. On a cloud instance the attached
+    # identity (service account / instance profile / managed identity)
+    # supersedes this and the mount is absent.
+    - ${CLOUD_CREDS_PATH:-/dev/null}:${CLOUD_CREDS_MOUNT:-/tmp/.unused-creds}:ro
+  logging:
+    driver: json-file
+    options: {max-size: "10m", max-file: "3"}
+
+services:
+  scheduler:
+    <<: *airflow-common
+    command: ["scheduler"]
+    healthcheck:
+      test: ["CMD-SHELL", "airflow jobs check --job-type SchedulerJob --hostname $$(hostname)"]
+      interval: 60s
+      timeout: 20s
+      retries: 3
+      start_period: 120s
+
+  api-server:
+    <<: *airflow-common
+    command: ["api-server"]
+    # Loopback only. Reach the UI with: ssh -N -L 8080:localhost:8080 you@control
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      - scheduler
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/api/v2/monitor/health || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 90s

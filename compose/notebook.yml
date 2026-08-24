@@ -1,0 +1,30 @@
+# =============================================================================
+# Notebook node: interactive research.
+#
+# Started when wanted, stopped when not. Reach it with:
+#   ssh -N -L 8888:localhost:8888 you@notebook-node
+# =============================================================================
+services:
+  jupyter:
+    image: ${IMAGE}:${IMAGE_TAG}
+    command: ["jupyter"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8888:8888"
+    environment:
+      RP_ENV: ${RP_ENV}
+      RP_STORAGE_URI: ${RP_STORAGE_URI}
+      RP_CLOUD: ${RP_CLOUD:-}
+      RP_PROJECT_ID: ${RP_PROJECT_ID:-}
+      RP_REGION: ${RP_REGION:-}
+      RP_RESOURCE_GROUP: ${RP_RESOURCE_GROUP:-}
+      PYTHONPATH: /app
+    volumes:
+      # Notebooks survive container rebuilds; nothing else on this disk should.
+      - notebooks:/data/notebooks
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+
+volumes:
+  notebooks:

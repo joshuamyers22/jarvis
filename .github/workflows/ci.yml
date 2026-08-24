@@ -1,0 +1,121 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      # Tests run against the local storage backend, so no provider extra is
+      # needed to exercise job logic.
+      # DAG integrity tests instantiate the GCP operator selected by the test
+      # environment, so install that provider instead of silently skipping it.
+      - run: uv sync --frozen --extra dev --extra gcp
+      - run: uv run ruff check .
+      - run: uv run mypy jobs ctl
+      - run: uv run pytest -q
+
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.13.3"
+      - run: terraform fmt -check -recursive terraform
+      - name: Validate provider modules
+        run: |
+          for module in gcp aws azure; do
+            terraform -chdir="terraform/$module" init -backend=false -input=false
+            terraform -chdir="terraform/$module" validate
+          done
+
+  # One image per provider. Installing all three SDK stacks in one image
+  # triples its size and guarantees a dependency conflict between the
+  # boto / google / azure trees.
+  build:
+    needs: [lint-and-test, terraform]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        cloud: [gcp, aws, azure]
+    permissions:
+      contents: read
+      id-token: write   # keyless auth on all three -- no long-lived secrets
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      # --- provider login (only the configured one runs) --------------------
+      - name: Auth to GCP
+        if: matrix.cloud == 'gcp' && vars.GCP_IMAGE != ''
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_CI_SERVICE_ACCOUNT }}
+
+      - name: Auth to AWS
+        if: matrix.cloud == 'aws' && vars.AWS_IMAGE != ''
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_CI_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Auth to Azure
+        if: matrix.cloud == 'azure' && vars.AZURE_IMAGE != ''
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Resolve image name
+        id: img
+        run: |
+          case "${{ matrix.cloud }}" in
+            gcp)   echo "image=${{ vars.GCP_IMAGE }}"   >> "$GITHUB_OUTPUT" ;;
+            aws)   echo "image=${{ vars.AWS_IMAGE }}"   >> "$GITHUB_OUTPUT" ;;
+            azure) echo "image=${{ vars.AZURE_IMAGE }}" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Registry login
+        if: steps.img.outputs.image != ''
+        run: |
+          host="$(echo '${{ steps.img.outputs.image }}' | cut -d/ -f1)"
+          case "${{ matrix.cloud }}" in
+            gcp)   gcloud auth configure-docker "$host" --quiet ;;
+            aws)   aws ecr get-login-password --region "${{ vars.AWS_REGION }}" \
+                     | docker login --username AWS --password-stdin "$host" ;;
+            azure) az acr login --name "${host%%.*}" ;;
+          esac
+
+      - name: Build and push
+        if: steps.img.outputs.image != ''
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: true
+          build-args: CLOUD=${{ matrix.cloud }}
+          # Deploys pin the SHA. :latest exists only as a cache source.
+          tags: |
+            ${{ steps.img.outputs.image }}:${{ github.sha }}
+            ${{ steps.img.outputs.image }}:latest
+          cache-from: type=registry,ref=${{ steps.img.outputs.image }}:latest
+          cache-to: type=inline
