@@ -17,6 +17,8 @@ dist/
 build/
 *.egg-info/
 logs/
+notebooks/
+.local-data/
 .terraform/
 *.tfstate
 *.tfstate.backup
