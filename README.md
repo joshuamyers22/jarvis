@@ -1,138 +1,128 @@
-# Research Platform
+# Jarvis
 
-One Docker image, five roles, elastic batch compute. Airflow orchestrates but
-never computes; every task dispatches work to a batch runner that scales to
-zero.
+Jarvis is a self-hosted research and batch-computing platform built around one
+container image. The same Python environment runs Jupyter sessions, scheduled
+Airflow workflows, streaming feeds, and elastic batch jobs on Google Cloud,
+AWS, or Azure.
 
-Runs on **Google Cloud, AWS or Azure**. One setting picks the provider:
+> [!IMPORTANT]
+> Jarvis is an early-stage reference implementation, not a turnkey production
+> service. Several data adapters are placeholders and the Terraform modules
+> expect existing private networking. Review [Production readiness](#production-readiness)
+> before deploying it with sensitive data or critical workloads.
 
+## Why Jarvis
+
+- **One image, five roles:** scheduler, API server, notebook, feed, and job.
+- **Portable jobs:** `jobs/` modules run from a terminal, notebook, scheduler,
+  or batch service without importing Airflow.
+- **Elastic compute:** Airflow dispatches work; it does not perform the work.
+- **Provider-neutral storage:** fsspec provides one path for GCS, S3, and ADLS.
+- **Reproducible releases:** dependencies are locked and production images use
+  immutable Git SHA tags.
+- **Keyless cloud access:** deployed roles use attached workload identities.
+
+## Architecture
+
+```text
+ Notebook ───────┐                         ┌─ GCP Cloud Run Jobs
+ Feed ───────────┼── Object storage       ├─ AWS Batch
+ Batch jobs ─────┘                         └─ Azure Container Instances
+                         ▲
+                         │
+                 Airflow control node ─── Managed PostgreSQL
+                  (dispatch and polling)     (metadata only)
 ```
-RP_STORAGE_URI=gs://my-bucket                                  # GCP
-RP_STORAGE_URI=s3://my-bucket                                  # AWS
-RP_STORAGE_URI=abfs://research@acct.dfs.core.windows.net       # Azure
+
+`RP_STORAGE_URI` selects the provider:
+
+```dotenv
+RP_STORAGE_URI=gs://my-bucket
+RP_STORAGE_URI=s3://my-bucket
+RP_STORAGE_URI=abfs://research@account.dfs.core.windows.net
 ```
 
-Nothing in `jobs/`, `dags/` or `compose/` branches on the provider. See
-`PLAN.md` for the architecture and `terraform/README.md` for the one layer that
-genuinely does not abstract.
+See [Architecture](docs/architecture.md) for component boundaries, execution
+flow, storage conventions, and the provider comparison.
 
-## Layout
+## Quick start
 
-```
-docker/           the one image + role dispatch
-jobs/             task bodies -- no Airflow imports, runnable anywhere
-  common/cloud.py the only file that knows provider names
-dags/             orchestration only: when, and in what order
-  _providers.py   one dispatch function per cloud, same signature
-compose/          one file per node role (provider-neutral)
-terraform/gcp/    \
-terraform/aws/     > three parallel modules, same output names
-terraform/azure/  /
-ctl/              build / push / deploy / logs / shell / run
-tests/            job logic + provider resolution + DAG integrity
-```
-
-## The three rules
-
-**1. `jobs/` never imports Airflow.** Every job is `python -m jobs.<name>
---date YYYY-MM-DD`. That means a failing task is debugged by running it
-directly, or in a notebook, instead of through the scheduler.
-
-**2. Nothing outside `jobs/common/cloud.py` and `dags/_providers.py` branches
-on the provider.** Storage is fsspec, which speaks `gs://`, `s3://` and
-`abfs://` identically. Dispatch is one function per cloud behind a shared
-signature, and a test asserts those signatures stay identical. Adding a fourth
-provider is a change in two files plus a Terraform module.
-
-**3. Data lands before the marker.** `write_parquet` then `mark_success`. A
-reader that checks `is_complete()` can never see a half-written partition. The
-`verify` task in every DAG enforces this from the other side.
-
-## First run
+Prerequisites: Python 3.12, [uv](https://docs.astral.sh/uv/), Docker with
+Compose v2, and Git.
 
 ```bash
-cp .env.example .env          # fill in ONE provider block
-uv lock                       # requires network; commit the result
-make build CLOUD=gcp          # or aws, or azure
-docker run --rm --env-file .env research-platform:dev job pull_ohlcv --date 2026-08-11
+git clone https://github.com/joshuamyers22/jarvis.git
+cd jarvis
+uv sync --frozen --extra dev --extra gcp
+uv run ruff check .
+uv run mypy jobs ctl
+uv run pytest -q
 ```
 
-Local development needs no cloud at all -- set `RP_LOCAL_ROOT=/tmp/research-data`
-and every storage call routes to disk through fsspec.
-
-## Deploying
-
-The image carries one provider's SDK stack, selected at build time. Installing
-all three triples the image and guarantees a dependency conflict between the
-boto, google and azure trees.
+To run without cloud infrastructure, copy `.env.example` to `.env`, set
+`RP_LOCAL_ROOT=.local-data`, and build an image:
 
 ```bash
-ctl build && ctl push         # provider inferred from RP_STORAGE_URI
-ctl deploy control            # scheduler + api-server, and the batch job image
-ctl deploy feed
-ctl logs control --service scheduler
+docker build -f docker/Dockerfile --build-arg CLOUD=gcp \
+  -t research-platform:dev .
+docker run --rm --env-file .env research-platform:dev \
+  job pull_ohlcv --date 2026-08-11
 ```
 
-`ctl deploy` writes one SHA to one file per host and updates the batch job
-definition in the same command, so all roles run the same tag by construction.
-Deploys always pin a SHA; `:latest` exists only as a build cache source.
+The bundled OHLCV adapter targets a placeholder API shape. Replace
+`jobs/pull_ohlcv.py::_fetch_bars` before expecting real market data. See
+[Getting started](docs/getting-started.md) for the complete walkthrough.
 
-How "update the batch definition" lands differs by provider, and this is the one
-place that difference leaks into operations:
+## Repository map
 
-| | GCP | AWS | Azure |
-|---|---|---|---|
-| Batch unit | Cloud Run Job | Batch job definition | Container Instance |
-| Update | in place | new immutable revision | none -- tag ships in the env file |
-| Cold start | seconds | seconds | tens of seconds to minutes |
-
-## Access
-
-Nothing listens on a public port.
-
-```bash
-ssh -N -L 8080:localhost:8080 you@control     # Airflow UI
-ssh -N -L 8888:localhost:8888 you@notebook    # Jupyter
+```text
+jobs/             provider-neutral jobs and shared runtime code
+dags/             Airflow scheduling, dispatch, and output verification
+compose/          control, feed, and notebook service definitions
+docker/           shared image and role-dispatch entrypoint
+terraform/        parallel GCP, AWS, and Azure modules
+ctl/              build, push, deploy, logs, shell, and run commands
+tests/            architecture, job, provider, and DAG checks
+docs/             setup, design, notebook, and operations guides
 ```
 
-Instances have no external IP; reach them with
-`gcloud compute ssh --tunnel-through-iap`.
+## Documentation
 
-## Credentials
+- [Getting started](docs/getting-started.md)
+- [Architecture](docs/architecture.md)
+- [Notebook storage and cross-machine workflows](docs/notebooks.md)
+- [Deployment and operations](docs/operations.md)
+- [Terraform provider guide](terraform/README.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
 
-There are none to manage on any of the three. Each provider's SDK finds an
-attached identity through its own default credential chain:
+## Design invariants
 
-| | Identity | Local dev |
-|---|---|---|
-| GCP | Service account attached to the instance | `gcloud auth application-default login` |
-| AWS | IAM role via instance profile | `aws sso login` |
-| Azure | User-assigned managed identity | `az login` |
+1. `jobs/` never imports Airflow.
+2. Provider branching is confined to `jobs/common/cloud.py` and
+   `dags/_providers.py`.
+3. Jobs write data before their success marker.
+4. Research data and artifacts live in object storage; compute is disposable.
+5. Deployed services use the same immutable image tag.
 
-Set `CLOUD_CREDS_PATH` and `CLOUD_CREDS_MOUNT` in `.env` to mount local
-credentials read-only. No key file is ever downloaded, committed, or rotated.
+Tests enforce the first three invariants.
 
-## Adding a job
+## Production readiness
 
-1. Write `jobs/my_job.py` with `def run(ctx) -> JobResult` and
-   `entrypoint("my_job", run)` at the bottom.
-2. Run it locally against `RP_LOCAL_ROOT` until it is right.
-3. Add a DAG: one `dispatch(...)` and one `verify(...)`. The DAG integrity test
-   fails if you forget the second.
+Before production use, address [the readiness findings](ADVERSARIAL_REVIEW.md):
 
-## Known gaps
+- implement and validate the market-data and feed adapters;
+- provide private networking and remote Terraform state;
+- configure least-privilege identities and provider secret stores;
+- add backups, restore tests, monitoring, alerts, and runbooks;
+- choose and test a notebook backup/synchronization strategy;
+- validate resource sizing, retention, recovery objectives, and cost controls.
 
-See `ADVERSARIAL_REVIEW.md` for the security and production-readiness findings
-and `SECURITY.md` for repository handling rules.
+Azure currently uses Container Instances rather than Container Apps Jobs; read
+[the Azure notes](terraform/azure/README.md) before selecting it.
 
-* `jobs/pull_ohlcv.py` targets a placeholder REST shape. Replace `_fetch_bars`.
-* `jobs/feed.py::parse_message` is vendor-specific.
-* `jobs/build_pnl.py` assumes a `positions` dataset with `quantity`,
-  `prev_mark`, and optionally `multiplier`. Nothing produces it yet.
-* Terraform assumes existing networking on all three providers. The modules
-  wire private database access but do not create a VPC/VNet: provide the GCP
-  VPC/subnet self-links, AWS VPC/private subnets, or Azure VM, PostgreSQL, and
-  ACI subnet IDs plus the linked PostgreSQL private DNS zone.
-* The Azure path uses Container Instances, not Container Apps Jobs. Read
-  `terraform/azure/README.md` before choosing Azure as your primary.
-* `terraform/aws` assumes Fargate; there is no EC2 compute environment.
+## License
+
+No license is currently granted. The repository is publicly viewable, but that
+does not by itself grant permission to copy, modify, or redistribute the code.
+Add an explicit license before encouraging reuse or accepting contributions.

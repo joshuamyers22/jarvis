@@ -27,3 +27,4 @@ notebooks/
 crash.log
 crash.*.log
 .ipynb_checkpoints/
+.DS_Store
