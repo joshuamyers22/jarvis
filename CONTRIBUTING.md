@@ -13,8 +13,11 @@ cd jarvis
 uv sync --frozen --extra dev --extra gcp
 ```
 
-Python 3.12 is required. Docker is required for image workflows; Terraform 1.13
-is required to validate infrastructure modules.
+Python 3.12 and uv 0.12.5 are required. The verified image toolchain is Docker
+Engine 29.x with Buildx 0.36.x and Compose v2. Terraform 1.13.3 validates the
+infrastructure modules. See the
+[supported build environment](docs/build-environment.md) before updating any
+pinned build input.
 
 ## Quality checks
 

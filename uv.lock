@@ -1923,33 +1923,13 @@ wheels = [
 
 [[package]]
 name = "ggstyle"
-version = "0.1.0"
-source = { editable = "../ggstyle" }
+version = "0.5.0"
+source = { git = "https://github.com/joshuamyers22/ggstyle.git?rev=d19e333cdf101179f19f8221b36ef7b77d11f884#d19e333cdf101179f19f8221b36ef7b77d11f884" }
 dependencies = [
     { name = "matplotlib" },
     { name = "numpy" },
     { name = "pandas" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "build", marker = "extra == 'dev'" },
-    { name = "matplotlib", specifier = ">=3.7" },
-    { name = "mypy", marker = "extra == 'dev'" },
-    { name = "numpy", specifier = ">=1.24" },
-    { name = "numpydoc", marker = "extra == 'docs'", specifier = ">=1.6" },
-    { name = "pandas", specifier = ">=2.0" },
-    { name = "pandas-stubs", marker = "extra == 'dev'" },
-    { name = "polars", marker = "extra == 'dev'", specifier = ">=1.0" },
-    { name = "polars", marker = "extra == 'polars'", specifier = ">=1.0" },
-    { name = "pydata-sphinx-theme", marker = "extra == 'docs'", specifier = ">=0.15" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'" },
-    { name = "ruff", marker = "extra == 'dev'" },
-    { name = "sphinx", marker = "extra == 'docs'", specifier = ">=7" },
-    { name = "twine", marker = "extra == 'dev'" },
-]
-provides-extras = ["dev", "polars", "docs"]
 
 [[package]]
 name = "google-ads"
@@ -5399,7 +5379,7 @@ requires-dist = [
     { name = "duckdb", specifier = ">=1.0" },
     { name = "fsspec", specifier = ">=2024.6.0" },
     { name = "gcsfs", marker = "extra == 'gcp'", specifier = ">=2024.6.0" },
-    { name = "ggstyle", editable = "../ggstyle" },
+    { name = "ggstyle", git = "https://github.com/joshuamyers22/ggstyle.git?rev=d19e333cdf101179f19f8221b36ef7b77d11f884" },
     { name = "google-cloud-secret-manager", marker = "extra == 'gcp'", specifier = ">=2.20" },
     { name = "google-cloud-storage", marker = "extra == 'gcp'", specifier = ">=2.17" },
     { name = "httpx", specifier = ">=0.27" },

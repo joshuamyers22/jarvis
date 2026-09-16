@@ -3,6 +3,7 @@ name = "research-platform"
 version = "0.1.0"
 description = "Self-hosted research and batch platform: one image, many roles."
 requires-python = ">=3.12,<3.13"
+license = "MIT"
 
 # Provider SDKs are NOT here. They live in extras so the image contains one
 # cloud's stack rather than three -- see [project.optional-dependencies].
@@ -88,4 +89,4 @@ warn_redundant_casts = true
 warn_unused_ignores = true
 
 [tool.uv.sources]
-ggstyle = { path = "../ggstyle", editable = true }
+ggstyle = { git = "https://github.com/joshuamyers22/ggstyle.git", rev = "d19e333cdf101179f19f8221b36ef7b77d11f884" }

@@ -1,0 +1,13 @@
+# Replace individual ownership with organization teams when Jarvis moves under
+# its production GitHub organization. Until then, every sensitive path has an
+# explicit reviewer instead of relying on implicit repository ownership.
+* @joshuamyers22
+
+/.github/ @joshuamyers22
+/docker/ @joshuamyers22
+/terraform/ @joshuamyers22
+/jobs/ @joshuamyers22
+/dags/ @joshuamyers22
+/ctl/ @joshuamyers22
+/PRODUCTION_PLAN.md @joshuamyers22
+/SECURITY.md @joshuamyers22

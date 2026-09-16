@@ -35,6 +35,17 @@ Updates must pass lint, type checks, tests, Terraform validation, and all three
 provider image builds. Production deploys use immutable Git SHA image tags;
 `latest` is only a build-cache hint.
 
+Pull requests scan locked dependencies, repository secrets, infrastructure
+configuration, and every provider image. Fixed high or critical findings block
+merging. Each image build also emits an SPDX JSON SBOM retained with CI evidence.
+
+A vulnerability exception requires a private security issue containing the
+affected component and version, exploitability assessment, compensating control,
+named owner, review date, and expiry no later than 30 days. The exception must be
+approved by a code owner and referenced from the workflow or scanner ignore file.
+Expired exceptions fail the build. Detected credentials and private keys are never
+eligible for an exception; rotate or revoke them and remove them from history.
+
 ## Deployment boundary
 
 Jarvis does not provide multi-user authorization, public ingress, or a hardened

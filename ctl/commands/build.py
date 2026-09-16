@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import typer
 
-from ctl.commands._util import eprint, load_env, registry_login, resolve_tag, sh
+from ctl.commands._util import eprint, git_sha, load_env, registry_login, resolve_tag, sh
 
 
 def build(
@@ -31,6 +31,8 @@ def build(
             platform,
             "--build-arg",
             f"CLOUD={target_cloud}",
+            "--build-arg",
+            f"VCS_REF={git_sha(short=False)}",
             "-f",
             "docker/Dockerfile",
             "-t",

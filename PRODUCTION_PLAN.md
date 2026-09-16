@@ -1,6 +1,6 @@
 # Jarvis production functionality plan
 
-Status: proposed
+Status: active — Phase 0 in progress
 Prepared: 2026-09-16
 Reference reviewed: [`sixtycapital/infrastructure`](https://github.com/sixtycapital/infrastructure/tree/b6da17b68b9a2be41dbfa616506b70e30ce62c6e), tag `3.4.1`
 
@@ -263,6 +263,18 @@ work early is acceptable, but no production promotion bypasses a gate.
 ### Phase 0 — Reproducible baseline
 
 Goal: make the current repository a trustworthy build input.
+
+Implementation status (2026-09-16):
+
+| Item | Status | Evidence / remaining action |
+|---|---|---|
+| P0.1 | Complete | `ggstyle` resolves from an exact public Git commit, the lockfile is regenerated, and a clean temporary checkout completes frozen sync without the sibling repository. |
+| P0.2 | Implemented; CI confirmation pending | CI builds `gcp`, `aws`, and `azure` images and runs the five-role smoke suite. All three variants also build and pass locally. |
+| P0.3 | Complete | Python and `uv` base inputs are digest-pinned, image revisions are labeled, and supported build-tool versions are documented. |
+| P0.4 | Implemented; CI confirmation pending | Source and image vulnerability/secret scans, Terraform misconfiguration scanning, SPDX SBOM artifacts, provenance, and the exception policy are configured. |
+| P0.5 | Partial | The MIT license, `CODEOWNERS`, immutable action pins, Dependabot, and documented review policy are present. An owner must still enable repository rules, secret scanning, and push protection in GitHub. |
+| P0.6 | Deferred by owner | Keep Jarvis in its current personal repository for now. Organization transfer, team/ruleset setup, and the credential/collaborator audit remain required before a production launch. |
+| P0.7 | Complete | ADR 0001 records the GCP-first architecture, artifact boundaries, and conditions for a later repository split. |
 
 - **P0.1 Resolve local dependencies.** Replace the editable `../ggstyle` source with
   a released version or immutable Git revision, regenerate `uv.lock`, and prove the

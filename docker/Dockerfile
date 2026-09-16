@@ -4,12 +4,18 @@
 # Layer order is cheapest-changing first, so editing a job module rebuilds only
 # the final COPY rather than the dependency solve.
 # =============================================================================
-FROM python:3.12-slim
+FROM python:3.12-slim@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea
 
 # Which provider's SDK stack to install: gcp | aws | azure.
 # One image contains one cloud's stack. Installing all three triples the image
 # and guarantees a dependency conflict between the boto/google/azure trees.
 ARG CLOUD=gcp
+ARG VCS_REF=unknown
+
+LABEL org.opencontainers.image.source="https://github.com/joshuamyers22/jarvis" \
+      org.opencontainers.image.revision="${VCS_REF}" \
+      org.opencontainers.image.base.name="docker.io/library/python:3.12-slim" \
+      org.opencontainers.image.base.digest="sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea"
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -30,7 +36,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # --- 2. uv (changes rarely) --------------------------------------------------
-COPY --from=ghcr.io/astral-sh/uv:0.5 /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.12.5@sha256:e85be844203885286c60ffad8a858d48afb6c5a5c237ca0e67f12e74b8f174b1 /uv /usr/local/bin/uv
 
 # --- 3. locked dependencies (changes when deps change) -----------------------
 WORKDIR /app

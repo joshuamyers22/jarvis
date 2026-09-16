@@ -92,6 +92,8 @@ docs/             setup, design, notebook, and operations guides
 - [Architecture](docs/architecture.md)
 - [Notebook storage and cross-machine workflows](docs/notebooks.md)
 - [Deployment and operations](docs/operations.md)
+- [Supported build environment](docs/build-environment.md)
+- [Production boundary decision](docs/adr/0001-production-boundaries.md)
 - [Production functionality plan](PRODUCTION_PLAN.md)
 - [Terraform provider guide](terraform/README.md)
 - [Contributing](CONTRIBUTING.md)
@@ -124,6 +126,4 @@ Azure currently uses Container Instances rather than Container Apps Jobs; read
 
 ## License
 
-No license is currently granted. The repository is publicly viewable, but that
-does not by itself grant permission to copy, modify, or redistribute the code.
-Add an explicit license before encouraging reuse or accepting contributions.
+Jarvis is licensed under the [MIT License](LICENSE).

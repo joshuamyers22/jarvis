@@ -9,6 +9,7 @@ lock:            ## regenerate uv.lock (requires network)
 
 build:
 	docker build -f docker/Dockerfile --build-arg CLOUD=$(CLOUD) \
+		--build-arg VCS_REF=$(shell git rev-parse HEAD) \
 		-t $(IMAGE):$(TAG) -t $(IMAGE):latest .
 
 test:
