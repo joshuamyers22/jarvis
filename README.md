@@ -92,6 +92,7 @@ docs/             setup, design, notebook, and operations guides
 - [Architecture](docs/architecture.md)
 - [Notebook storage and cross-machine workflows](docs/notebooks.md)
 - [Deployment and operations](docs/operations.md)
+- [Production functionality plan](PRODUCTION_PLAN.md)
 - [Terraform provider guide](terraform/README.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
