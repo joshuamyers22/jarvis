@@ -1,0 +1,13 @@
+# Overlay for a notebook host with Amazon EFS already mounted.
+#
+# Use with compose/notebook.yml. The deployment CLI includes this overlay when
+# NOTEBOOKS_HOST_PATH is set and refuses to start unless that path is a mount
+# point, preventing an EFS outage from silently redirecting writes to root disk.
+services:
+  jupyter:
+    volumes:
+      - type: bind
+        source: ${NOTEBOOKS_HOST_PATH:?set NOTEBOOKS_HOST_PATH to the verified EFS mount}
+        target: /data/notebooks
+        bind:
+          propagation: rprivate

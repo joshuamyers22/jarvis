@@ -37,3 +37,15 @@ output "instances" {
 output "airflow_secrets_backend" {
   value = "airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend"
 }
+
+output "notebook_efs" {
+  description = "Shared notebook EFS details. Null when enable_notebook_efs is false."
+  value = var.enable_notebook_efs ? {
+    managed_by_this_stack          = local.create_notebook_efs
+    file_system_id                 = local.notebook_efs_id
+    access_point_id                = local.notebook_efs_access_point_id
+    mount_target_security_group_id = local.create_notebook_efs ? aws_security_group.notebook_efs[0].id : var.notebook_efs_mount_target_security_group_id
+    dns_name                       = "${local.notebook_efs_id}.efs.${var.region}.amazonaws.com"
+    host_mount_path                = "/mnt/jarvis-notebooks"
+  } : null
+}

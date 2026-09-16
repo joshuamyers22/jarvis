@@ -46,3 +46,99 @@ results to versioned object storage instead of leaving them only in output cells
 A managed file-sync service can replicate a host directory, but should not allow
 concurrent writers. If replacing the named volume with a bind mount, configure
 an explicit host path and ensure ownership matches container UID 50000.
+
+## Shared notebooks on Amazon EFS
+
+The AWS module can provision encrypted EFS storage or authorize a notebook host
+to use an existing EFS file system shared by several Jarvis environments. EFS is
+optional so local and non-AWS deployments retain the named-volume behavior.
+
+For an EFS owned by one Jarvis stack:
+
+```hcl
+enable_notebook_efs = true
+```
+
+The stack creates:
+
+- an encrypted Regional EFS file system with automatic backups;
+- one mount target per Availability Zone represented by `private_subnet_ids`;
+- a security group accepting NFS only from authorized notebook security groups;
+- an access point rooted at `/notebooks`, enforcing UID/GID `50000`; and
+- file-system and instance-role policies requiring the access point and encrypted
+  transport.
+
+To attach another environment in the same Region to the same files, provide the
+owner stack's outputs:
+
+```hcl
+enable_notebook_efs                         = true
+notebook_efs_file_system_id                 = "fs-0123456789abcdef0"
+notebook_efs_access_point_id                = "fsap-0123456789abcdef0"
+notebook_efs_mount_target_security_group_id = "sg-0123456789abcdef0"
+notebook_efs_owner_account_id               = "111122223333" # only if cross-account
+```
+
+The owner stack must also trust the consumer account when accounts differ and
+allow its notebook security group:
+
+```hcl
+notebook_efs_trusted_account_ids = ["444455556666"]
+notebook_efs_client_security_group_ids = [
+  "sg-consumer-notebook",
+]
+```
+
+Apply the owner first, the consumer second, then update the owner with the
+consumer security group/account if needed. A dedicated shared-storage Terraform
+stack is preferable once more than two environments consume the file system.
+
+### Mounting on the notebook host
+
+Use a versioned machine image with a current `amazon-efs-utils` package. The
+notebook instance role receives the EFS client permissions and AWS-managed policy
+needed by the mount helper, but Terraform deliberately does not compile host
+packages during instance boot.
+
+Read the `notebook_efs` Terraform output, then configure the host:
+
+```bash
+sudo install -d -m 0750 -o 50000 -g 50000 /mnt/jarvis-notebooks
+echo 'fs-0123456789abcdef0:/ /mnt/jarvis-notebooks efs _netdev,tls,iam,accesspoint=fsap-0123456789abcdef0,noresvport 0 0' \
+  | sudo tee -a /etc/fstab
+sudo mount /mnt/jarvis-notebooks
+mountpoint /mnt/jarvis-notebooks
+```
+
+Set this non-secret deployment value:
+
+```dotenv
+NOTEBOOKS_HOST_PATH=/mnt/jarvis-notebooks
+```
+
+`ctl deploy notebook` then verifies the path is an active mount point and applies
+`compose/notebook.efs.yml`. It fails closed if EFS is unavailable, rather than
+letting Jupyter write silently to the instance root disk.
+
+### Boundaries and cautions
+
+- EFS is Regional. Same-VPC sharing is the supported default here. Cross-VPC or
+  cross-account mounts additionally require peering or Transit Gateway routing,
+  mount-target reachability, DNS or mount-target IP handling, and matching
+  resource policies.
+- Sharing between `dev` and `prod` weakens environment isolation. Prefer a shared
+  research filesystem or read-only published artifacts; share the same access
+  point only after an explicit data-governance decision.
+- EFS provides shared filesystem semantics, not collaborative notebook merging.
+  Do not edit one `.ipynb` concurrently from multiple Jupyter sessions.
+- Automatic EFS backups are not source control. Keep reviewable notebook source in
+  the private notebook Git repository and test both Git and EFS recovery.
+- Important datasets and reproducible outputs still belong in object storage.
+
+AWS requires EFS mount targets for network access, recommends one in every client
+Availability Zone, applies security groups at mount targets, and requires the EFS
+mount helper for access-point mounts. See the AWS documentation for
+[mount targets](https://docs.aws.amazon.com/efs/latest/ug/accessing-fs.html),
+[security-group rules](https://docs.aws.amazon.com/efs/latest/ug/network-access.html),
+[access-point mounts](https://docs.aws.amazon.com/efs/latest/ug/mounting-access-points.html),
+and [cross-VPC access](https://docs.aws.amazon.com/efs/latest/ug/mount-fs-different-vpc.html).

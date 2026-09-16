@@ -11,6 +11,7 @@ it is the same three rsyncs and a compose restart on all three clouds.
 from __future__ import annotations
 
 import json
+import shlex
 
 import typer
 
@@ -27,6 +28,36 @@ from ctl.commands._util import (
 )
 
 ROLES = ("control", "feed", "notebook")
+
+
+def _compose_files(
+    role: str,
+    env: dict[str, str],
+    remote_dir: str,
+    host: str,
+) -> list[str]:
+    files = [f"{remote_dir}/compose/{role}.yml"]
+    if role != "notebook" or not env.get("NOTEBOOKS_HOST_PATH"):
+        return files
+
+    notebooks_host_path = env["NOTEBOOKS_HOST_PATH"]
+    if not notebooks_host_path.startswith("/"):
+        typer.secho(
+            "NOTEBOOKS_HOST_PATH must be an absolute path",
+            fg=typer.colors.RED,
+        )
+        raise typer.Exit(1)
+
+    quoted_path = shlex.quote(notebooks_host_path)
+    sh(
+        [
+            "ssh",
+            host,
+            f"test -d {quoted_path} && mountpoint -q -- {quoted_path}",
+        ]
+    )
+    files.append(f"{remote_dir}/compose/notebook.efs.yml")
+    return files
 
 
 def _update_batch_image(env: dict[str, str], tag: str) -> None:
@@ -156,18 +187,28 @@ def deploy(
         # The one place the tag is written.
         sh(["ssh", host, f"printf 'IMAGE_TAG={resolved}\\n' > {remote_dir}/.env.tag"])
 
-        compose = f"{remote_dir}/compose/{name}.yml"
+        compose_files = _compose_files(name, env, remote_dir, host)
+        compose_flags = " ".join(f"-f {shlex.quote(path)}" for path in compose_files)
         env_flags = f"--env-file {remote_dir}/.env --env-file {remote_dir}/.env.tag"
         compose_cmd = (
             "compose() { if docker compose version >/dev/null 2>&1; "
             'then docker compose "$@"; else docker-compose "$@"; fi; }; compose'
         )
-        sh(["ssh", host, f"cd {remote_dir} && {compose_cmd} {env_flags} -f {compose} pull"])
         sh(
             [
                 "ssh",
                 host,
-                f"cd {remote_dir} && {compose_cmd} {env_flags} -f {compose} up -d --remove-orphans",
+                f"cd {remote_dir} && {compose_cmd} {env_flags} {compose_flags} pull",
+            ]
+        )
+        sh(
+            [
+                "ssh",
+                host,
+                (
+                    f"cd {remote_dir} && {compose_cmd} {env_flags} "
+                    f"{compose_flags} up -d --remove-orphans"
+                ),
             ]
         )
         eprint(f"    {name} is on {resolved}")

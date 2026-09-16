@@ -33,3 +33,15 @@ Each module produces the same outputs, which is where the abstraction does
 hold: `storage_uri`, `registry`, `batch_job_name`, `db_host`, and the identities
 each role runs as. Feed those into `.env` and the rest of the platform does not
 know or care which cloud it is on.
+
+## AWS shared notebook storage
+
+The AWS module optionally exposes a `notebook_efs` output. With
+`enable_notebook_efs = true`, it creates encrypted, backed-up EFS storage and a
+UID/GID 50000 access point. A second environment can pass the resulting file
+system, access point, and mount-target security-group IDs to use the same files.
+
+EFS is intentionally AWS-specific and does not alter the provider-neutral data
+path: datasets and artifacts remain in object storage. See
+[`docs/notebooks.md`](../docs/notebooks.md#shared-notebooks-on-amazon-efs) for the
+mount, cross-environment, and recovery procedure.

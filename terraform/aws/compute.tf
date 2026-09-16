@@ -34,6 +34,19 @@ resource "aws_security_group" "control" {
   }
 }
 
+resource "aws_security_group" "notebook" {
+  name        = "${local.name_prefix}-notebook"
+  description = "Notebook host egress; administrative access is through SSM"
+  vpc_id      = var.vpc_id
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
 resource "aws_instance" "control" {
   ami                    = data.aws_ami.debian.id
   instance_type          = var.control_instance_type
@@ -70,7 +83,7 @@ resource "aws_instance" "notebook" {
   ami                    = data.aws_ami.debian.id
   instance_type          = var.notebook_instance_type
   subnet_id              = var.private_subnet_ids[0]
-  vpc_security_group_ids = [aws_security_group.control.id]
+  vpc_security_group_ids = [aws_security_group.notebook.id]
   iam_instance_profile   = aws_iam_instance_profile.roles["notebook"].name
   user_data              = local.user_data
 
