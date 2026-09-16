@@ -30,6 +30,7 @@ dependencies = [
   # --- interactive ---------------------------------------------------------
   "jupyterlab>=4.2",
   "matplotlib>=3.9",
+  "ggstyle",
 ]
 
 [project.optional-dependencies]
@@ -85,3 +86,6 @@ check_untyped_defs = true
 no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true
+
+[tool.uv.sources]
+ggstyle = { path = "../ggstyle", editable = true }
