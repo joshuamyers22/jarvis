@@ -12,6 +12,7 @@ services:
     stop_grace_period: 30s   # long enough for the SIGTERM handler to flush
     environment:
       RP_ENV: ${RP_ENV}
+      RP_CONFIG_FINGERPRINT: ${RP_CONFIG_FINGERPRINT:-}
       RP_STORAGE_URI: ${RP_STORAGE_URI}
       RP_CLOUD: ${RP_CLOUD:-}
       RP_PROJECT_ID: ${RP_PROJECT_ID:-}

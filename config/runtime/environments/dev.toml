@@ -1,0 +1,8 @@
+schema_version = 1
+
+[metadata]
+kind = "environment"
+environment = "dev"
+
+[runtime]
+RP_TIMEZONE = "UTC"

@@ -17,6 +17,7 @@ from ctl.commands._util import (
     sh,
     ssh_target,
 )
+from ctl.configuration import ConfigurationError, require_current_configuration
 from ctl.release import resolve_digest
 
 
@@ -145,6 +146,12 @@ def migrate(
             fg=typer.colors.RED,
         )
         raise typer.Exit(1)
+
+    try:
+        require_current_configuration(env, refresh_terraform=True)
+    except ConfigurationError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED)
+        raise typer.Exit(1) from None
 
     cloud = detect_cloud(env)
     if cloud not in {"gcp", "aws", "azure"}:

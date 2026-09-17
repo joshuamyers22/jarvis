@@ -2,6 +2,20 @@
 # abstraction genuinely holds: feed these into .env and nothing downstream
 # knows which cloud it is on.
 
+output "environment" {
+  value = var.env
+}
+
+output "provider" {
+  value = "aws"
+}
+
+output "configuration" {
+  value = {
+    region = var.region
+  }
+}
+
 output "storage_uri" {
   value = "s3://${aws_s3_bucket.data.bucket}"
 }
@@ -71,6 +85,10 @@ output "storage_contract" {
 }
 
 output "registry" {
+  value = aws_ecr_repository.images.repository_url
+}
+
+output "image_repository" {
   value = aws_ecr_repository.images.repository_url
 }
 

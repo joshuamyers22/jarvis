@@ -1,0 +1,20 @@
+schema_version = 1
+
+[metadata]
+kind = "base"
+
+[platform]
+# Terraform emits the exact repository. This name is retained for compatibility
+# with older state created before the image_repository output existed.
+image_name = "base"
+
+[runtime]
+AIRFLOW_HOME = "/opt/airflow"
+AIRFLOW_DB_PORT = "5432"
+AIRFLOW_DB_USER = "airflow"
+AIRFLOW_DB_NAME = "airflow"
+AIRFLOW_LOG_CONN_ID = ""
+RP_FEED_FLUSH_SECONDS = "60"
+RP_FEED_FLUSH_ROWS = "10000"
+RP_ALERT_EMAILS = ""
+RP_TIMEZONE = "UTC"

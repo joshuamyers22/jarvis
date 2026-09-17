@@ -15,6 +15,7 @@ import typer
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ENV_FILE = REPO_ROOT / ".env"
+OPERATOR_ENV_KEYS = frozenset({"RP_CONFIG_FILE", "SSH_USER"})
 
 # The deployment payload is an allowlist, not a blocklist. New local settings
 # remain local until they are deliberately classified as safe to place on a
@@ -55,6 +56,7 @@ DEPLOYMENT_ENV_KEYS = frozenset(
         "RP_FEED_FLUSH_ROWS",
         "RP_ALERT_EMAILS",
         "RP_TIMEZONE",
+        "RP_CONFIG_FINGERPRINT",
         "NOTEBOOKS_HOST_PATH",
     }
 )
@@ -95,9 +97,8 @@ def capture(command: list[str], *, cwd: Path | None = None) -> str:
     return result.stdout.strip()
 
 
-def load_env() -> dict[str, str]:
-    """Parse .env. Deliberately not python-dotenv -- one fewer dependency and
-    the format we accept is exactly the format docker compose accepts."""
+def load_local_env() -> dict[str, str]:
+    """Parse the ignored operator env without loading generated configuration."""
     if not ENV_FILE.exists():
         typer.secho(f"missing {ENV_FILE}; copy .env.example first", fg=typer.colors.RED)
         raise typer.Exit(1)
@@ -109,6 +110,48 @@ def load_env() -> dict[str, str]:
         key, _, value = line.partition("=")
         values[key.strip()] = value.strip().strip('"').strip("'")
     return values
+
+
+def load_env() -> dict[str, str]:
+    """Merge generated non-secret configuration with local operator settings.
+
+    The generated file owns any key it contains. The ignored local file supplies
+    only its path, SSH/operator coordinates, and credentials consumed by cloud
+    CLIs. Conflicting duplication is rejected instead of silently choosing a
+    precedence rule.
+    """
+    local = load_local_env()
+    configured_path = local.get("RP_CONFIG_FILE")
+    if not configured_path:
+        return local
+
+    from ctl.configuration import ConfigurationError, parse_env_file
+
+    path = Path(configured_path)
+    if not path.is_absolute():
+        path = REPO_ROOT / path
+    try:
+        generated = parse_env_file(path)
+    except ConfigurationError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED)
+        raise typer.Exit(1) from None
+
+    duplicates = sorted(generated.keys() & local.keys())
+    if duplicates:
+        typer.secho(
+            "local .env duplicates generated configuration: " + ", ".join(duplicates),
+            fg=typer.colors.RED,
+        )
+        raise typer.Exit(1)
+    unsupported = sorted(set(local) - OPERATOR_ENV_KEYS)
+    if unsupported:
+        typer.secho(
+            "local .env contains settings not owned by the operator file: "
+            + ", ".join(unsupported),
+            fg=typer.colors.RED,
+        )
+        raise typer.Exit(1)
+    return {**generated, **local, "RP_CONFIG_FILE": str(path)}
 
 
 def deployment_env(env: dict[str, str]) -> dict[str, str]:

@@ -29,6 +29,7 @@ from ctl.commands._util import (
     sh,
     ssh_target,
 )
+from ctl.configuration import ConfigurationError, require_current_configuration
 from ctl.release import Release, parse_release_env, resolve_digest
 
 ROLES = ("control", "feed", "notebook")
@@ -580,6 +581,8 @@ def _record_release_evidence(
     env: dict[str, str], targets: tuple[str, ...], release: Release, release_id: str
 ) -> None:
     payload = release.env_text() + f"RELEASE_ID={release_id}\n"
+    if fingerprint := env.get("RP_CONFIG_FINGERPRINT"):
+        payload += f"RP_CONFIG_FINGERPRINT={fingerprint}\n"
     quoted = shlex.quote(payload)
     for role in targets:
         host = ssh_target(env, role)
@@ -604,6 +607,11 @@ def deploy(
 ) -> None:
     """Health-gate an immutable release and roll back the whole transaction on failure."""
     env = load_env()
+    try:
+        require_current_configuration(env, refresh_terraform=True)
+    except ConfigurationError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED)
+        raise typer.Exit(1) from None
     targets = ROLES if role == "all" else (role,)
 
     for name in targets:

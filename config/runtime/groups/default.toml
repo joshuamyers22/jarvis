@@ -1,0 +1,21 @@
+schema_version = 1
+
+[metadata]
+kind = "group"
+group = "default"
+
+[runtime]
+# Copy this file to GROUP.toml and replace these group-owned adapter values.
+# Production rendering rejects the reserved example.invalid endpoint.
+RP_FEED_WS_URL = "wss://example.invalid/ws"
+RP_FEED_SOURCE = "example"
+RP_FEED_DATASET = "ticks"
+
+[environments.dev]
+RP_ALERT_EMAILS = ""
+
+[environments.stage]
+RP_ALERT_EMAILS = ""
+
+[environments.prod]
+RP_ALERT_EMAILS = ""

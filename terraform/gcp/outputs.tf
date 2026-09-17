@@ -5,6 +5,10 @@ output "environment" {
   value = var.env
 }
 
+output "provider" {
+  value = "gcp"
+}
+
 output "project_id" {
   value = var.project_id
 }
@@ -257,6 +261,10 @@ output "storage_contract" {
 
 output "registry" {
   value = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.images.repository_id}"
+}
+
+output "image_repository" {
+  value = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.images.repository_id}/base"
 }
 
 output "batch_job_name" {

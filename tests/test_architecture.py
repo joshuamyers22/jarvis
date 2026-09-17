@@ -125,6 +125,25 @@ def test_deployments_are_digest_pinned_and_transactional() -> None:
     assert "_collect_failure_logs" in deploy
 
 
+def test_runtime_configuration_is_generated_and_drift_tracked() -> None:
+    configuration = Path("ctl/configuration.py").read_text()
+    deploy = Path("ctl/commands/deploy.py").read_text()
+    release = Path("ctl/commands/release.py").read_text()
+    ignore = Path(".gitignore").read_text()
+
+    assert "terraform output" in configuration
+    assert "PROHIBITED_DEPLOYMENT_KEYS" in configuration
+    assert "RP_CONFIG_FINGERPRINT" in configuration
+    assert "require_current_configuration" in deploy
+    assert "_remote_configuration_fingerprint" in release
+    assert ".runtime/" in ignore
+
+    for provider in ("gcp", "aws", "azure"):
+        outputs = Path(f"terraform/{provider}/outputs.tf").read_text()
+        for name in ("environment", "provider", "configuration", "image_repository"):
+            assert f'output "{name}"' in outputs
+
+
 def test_host_image_credentials_remain_in_ignored_env_file() -> None:
     ignore = Path(".gitignore").read_text()
     example = Path("packer/gcp/.env.image.example").read_text()

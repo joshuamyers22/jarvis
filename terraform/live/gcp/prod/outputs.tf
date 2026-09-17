@@ -2,6 +2,10 @@ output "environment" {
   value = module.platform.environment
 }
 
+output "provider" {
+  value = module.platform.provider
+}
+
 output "project_id" {
   value = module.platform.project_id
 }
@@ -52,6 +56,10 @@ output "storage_lifecycle_policy" {
 
 output "registry" {
   value = module.platform.registry
+}
+
+output "image_repository" {
+  value = module.platform.image_repository
 }
 
 output "batch_job_name" {

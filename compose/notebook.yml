@@ -13,6 +13,7 @@ services:
       - "127.0.0.1:8888:8888"
     environment:
       RP_ENV: ${RP_ENV}
+      RP_CONFIG_FINGERPRINT: ${RP_CONFIG_FINGERPRINT:-}
       RP_STORAGE_URI: ${RP_STORAGE_URI}
       RP_SCRATCH_URI: ${RP_SCRATCH_URI}
       RP_CLOUD: ${RP_CLOUD:-}

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import typer
 
-from ctl.commands import build, deploy, logs, migrate, release, run, shell
+from ctl.commands import build, configuration, deploy, logs, migrate, release, run, shell
 
 app = typer.Typer(
     name="ctl",
@@ -25,6 +25,7 @@ app.command("plan")(release.plan)
 app.command("status")(release.status)
 app.command("doctor")(release.doctor)
 app.command("rollback")(release.rollback)
+app.add_typer(configuration.app, name="config")
 app.command("logs")(logs.logs)
 app.command("shell")(shell.shell)
 app.command("run")(run.run)

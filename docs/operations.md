@@ -65,9 +65,25 @@ Do not commit backend credentials, variable files, plans, or state.
 
 ## Production configuration
 
-- Keep `.env` mode `0600` and out of Git.
-- Do not add passwords, tokens, Fernet keys, or credential-file paths to `.env`;
-  `ctl deploy` rejects known secret-bearing keys and copies only its allowlist.
+- Render non-secret runtime settings from Terraform and the selected group
+  overlay, then point the ignored local `.env` at the result:
+
+  ```bash
+  uv run ctl config render --environment prod --group GROUP
+  uv run ctl config check --file .runtime/prod-GROUP.env
+  ```
+
+  ```dotenv
+  RP_CONFIG_FILE=.runtime/prod-GROUP.env
+  SSH_USER=operator
+  ```
+
+- Follow the [declarative configuration contract](declarative-configuration.md)
+  when adding a group or runtime setting. Do not edit generated files.
+- Keep `.env`, `.env.live`, and generated files mode `0600` and out of Git.
+- Do not add passwords, tokens, Fernet keys, or credential-file paths to runtime
+  overlays; `ctl deploy` rejects known secret-bearing keys and copies only its
+  non-secret allowlist.
 - Use workload identity and the provider secret store, not downloaded keys.
 - Keep `RP_STORAGE_URI` and `AIRFLOW_REMOTE_LOGS` on the same provider.
 - Set `RP_SCRATCH_URI` from Terraform's `scratch_uri` output and keep
@@ -80,6 +96,7 @@ Do not commit backend credentials, variable files, plans, or state.
 ```bash
 uv run ctl build
 uv run ctl push
+uv run ctl config check
 uv run ctl plan all
 uv run ctl deploy all
 uv run ctl status all

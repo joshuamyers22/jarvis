@@ -77,6 +77,20 @@ scripts/gcp-live.sh dev apply
 scripts/gcp-live.sh dev output
 ```
 
+After an apply, generate the non-secret runtime handoff instead of transcribing
+outputs into `.env`:
+
+```bash
+uv run ctl config render --environment dev --group GROUP
+uv run ctl config check --file .runtime/dev-GROUP.env
+```
+
+Select it with `RP_CONFIG_FILE=.runtime/dev-GROUP.env` in the ignored root
+`.env`. The renderer reads this root's ignored `.env.live` for Terraform access,
+but never copies its credentials or raw values into the generated manifest. See
+the [declarative configuration contract](../../../docs/declarative-configuration.md)
+for group profiles, private extensions, and drift behavior.
+
 `network-plan` and `network-apply` exist only for the first private-network
 bootstrap needed to build an environment's first host image. Follow the
 host-image runbook and do not use targeted network applies for routine changes.

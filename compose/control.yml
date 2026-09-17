@@ -50,6 +50,7 @@ x-airflow-common: &airflow-common
 
     # --- application ---------------------------------------------------------
     RP_ENV: ${RP_ENV}
+    RP_CONFIG_FINGERPRINT: ${RP_CONFIG_FINGERPRINT:-}
     RP_STORAGE_URI: ${RP_STORAGE_URI}
     RP_SCRATCH_URI: ${RP_SCRATCH_URI}
     RP_CLOUD: ${RP_CLOUD:-}

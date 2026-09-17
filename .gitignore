@@ -24,6 +24,7 @@ logs/
 recovery-evidence/
 notebooks/
 .local-data/
+.runtime/
 .terraform/
 *.tfstate
 *.tfstate.backup

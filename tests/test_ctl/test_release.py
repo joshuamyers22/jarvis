@@ -214,3 +214,58 @@ def test_status_fails_when_running_reference_differs_from_desired(
     state = release._release_status({"RP_CLOUD": "gcp", "IMAGE": "repo/app"}, "control")
 
     assert state["healthy"] is False
+
+
+def test_status_fails_when_host_configuration_fingerprint_differs(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    current = release_model.Release("abc123", DIGEST_A)
+    monkeypatch.setattr(release, "ssh_target", lambda env, role: f"operator@{role}")
+    monkeypatch.setattr(
+        deploy,
+        "_read_release_file",
+        lambda host, path: current if path.endswith(".env.tag") else None,
+    )
+    monkeypatch.setattr(
+        release,
+        "_health",
+        lambda env, role: ({"healthy": True}, current.reference("repo/app")),
+    )
+    monkeypatch.setattr(
+        release,
+        "_remote_configuration_fingerprint",
+        lambda env, role: "sha256:old",
+    )
+
+    state = release._release_status(
+        {
+            "RP_CLOUD": "gcp",
+            "IMAGE": "repo/app",
+            "RP_CONFIG_FINGERPRINT": "sha256:current",
+        },
+        "control",
+    )
+
+    assert state["configuration_current"] is False
+    assert state["healthy"] is False
+
+
+def test_release_evidence_binds_image_and_configuration(monkeypatch: MonkeyPatch) -> None:
+    selected = release_model.Release("abc123", DIGEST_A)
+    monkeypatch.setattr(release, "ssh_target", lambda env, role: "operator@control")
+    monkeypatch.setattr(
+        release,
+        "capture",
+        lambda command: (
+            selected.env_text()
+            + "RELEASE_ID=prod-abc123\n"
+            + "RP_CONFIG_FINGERPRINT=sha256:current"
+        ),
+    )
+
+    assert release._evidence_matches(
+        {"RP_CONFIG_FINGERPRINT": "sha256:current"}, "control", selected
+    )
+    assert not release._evidence_matches(
+        {"RP_CONFIG_FINGERPRINT": "sha256:different"}, "control", selected
+    )

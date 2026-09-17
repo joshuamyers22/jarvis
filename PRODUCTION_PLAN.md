@@ -439,10 +439,10 @@ Exit gate:
 
 Goal: turn the current SSH/Compose scaffold into a repeatable service deployment.
 
-Implementation status (2026-09-17): P3.1 through P3.4 are implemented and
+Implementation status (2026-09-17): P3.1 through P3.5 are implemented and
 locally validated. Live image replacement, service recovery, database migration,
-and transactional rollback drills remain environment evidence; P3.5 and P3.6
-are not yet complete.
+transactional rollback, and configuration-drift drills remain environment
+evidence; P3.6 is not yet complete.
 
 - **P3.1 Replace mutable VM bootstrap — complete locally.** A pinned Packer build
   now creates a private, Shielded Debian 12 image with exact Docker/Compose and
@@ -492,9 +492,20 @@ are not yet complete.
   release model, provider and schema gates, rollback ordering, synthetic probe,
   and supervisor contract. A staged failed-health and sub-15-minute rollback
   drill remains required under the transactional deployment runbook.
-- **P3.5 Make configuration declarative.** Generate non-secret runtime configuration
-  from Terraform outputs and environment overlays. Detect drift between Terraform,
-  runtime configuration, and the deployed digest.
+- **P3.5 Make configuration declarative — complete locally.** A typed renderer
+  now combines Terraform-owned resource identities with versioned base, group,
+  environment, and optional extension overlays. Groups can copy a stable profile
+  and override portable per-environment policy without forking deployment code;
+  infrastructure values cannot be shadowed, unknown keys fail closed, and secret
+  values are prohibited. Generated env files and manifests are ignored and
+  mode-`0600`, contain deterministic source and effective-configuration
+  fingerprints, and retain no raw Terraform output. Production deploys and
+  migrations require a current generated file; plan, status, and doctor expose
+  source, Terraform, host-runtime, image-digest, and release-evidence drift.
+  Release evidence records both image digest and configuration fingerprint, and
+  rollback restores the prior runtime file with the prior image. Tests cover
+  precedence, group extensions, secret/resource boundaries, reproducibility,
+  and drift. A live Terraform-change and host-drift exercise remains required.
 - **P3.6 Protect notebooks.** Attach an encrypted persistent disk, schedule snapshots,
   or on AWS mount the encrypted EFS notebook access point; schedule snapshots/backups,
   document private Git synchronization, and provide a tested replacement-host restore.

@@ -10,6 +10,12 @@ import typer
 
 from ctl.commands import deploy as deployment
 from ctl.commands._util import capture, detect_cloud, eprint, load_env, resolve_tag, ssh_target
+from ctl.configuration import (
+    ConfigurationError,
+    ConfigurationStatus,
+    configured_status,
+    require_current_configuration,
+)
 from ctl.release import Release, parse_release_env, resolve_digest
 
 
@@ -46,6 +52,33 @@ def _health(env: dict[str, str], role: str) -> tuple[dict[str, object], str]:
     return {"schema_version": 1, "role": role, "healthy": True, "services": output}, image
 
 
+def _local_configuration_status(
+    env: dict[str, str], *, refresh_terraform: bool
+) -> ConfigurationStatus | None:
+    if not env.get("RP_CONFIG_FILE") and env.get("RP_ENV") != "prod":
+        return None
+    return configured_status(env, refresh_terraform=refresh_terraform)
+
+
+def _remote_configuration_fingerprint(env: dict[str, str], role: str) -> str | None:
+    if not env.get("RP_CONFIG_FINGERPRINT"):
+        return None
+    host = ssh_target(env, role)
+    try:
+        value = capture(
+            [
+                "ssh",
+                host,
+                f"test -f /opt/research/{role}/runtime.env && "
+                f"sed -n 's/^RP_CONFIG_FINGERPRINT=//p' "
+                f"/opt/research/{role}/runtime.env",
+            ]
+        )
+    except subprocess.CalledProcessError:
+        return None
+    return value or None
+
+
 def _release_status(env: dict[str, str], role: str) -> dict[str, object]:
     host = ssh_target(env, role)
     remote_dir = f"/opt/research/{role}"
@@ -56,7 +89,14 @@ def _release_status(env: dict[str, str], role: str) -> dict[str, object]:
     try:
         health, actual_image = _health(env, role)
         expected_image = current.reference(env["IMAGE"])
-        healthy = bool(health.get("healthy")) and actual_image == expected_image
+        expected_configuration = env.get("RP_CONFIG_FINGERPRINT")
+        actual_configuration = _remote_configuration_fingerprint(env, role)
+        configuration_current = (
+            expected_configuration is None or actual_configuration == expected_configuration
+        )
+        healthy = (
+            bool(health.get("healthy")) and actual_image == expected_image and configuration_current
+        )
         return {
             "role": role,
             "host": host,
@@ -66,6 +106,9 @@ def _release_status(env: dict[str, str], role: str) -> dict[str, object]:
             ),
             "expected_image": expected_image,
             "actual_image": actual_image,
+            "expected_configuration": expected_configuration,
+            "actual_configuration": actual_configuration,
+            "configuration_current": configuration_current,
             "healthy": healthy,
             "health": health,
         }
@@ -86,6 +129,11 @@ def plan(
 ) -> None:
     """Resolve the candidate digest and show the remote changes without applying them."""
     env = load_env()
+    try:
+        configuration = require_current_configuration(env, refresh_terraform=True)
+    except ConfigurationError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED)
+        raise typer.Exit(1) from None
     cloud = detect_cloud(env)
     if cloud not in {"gcp", "aws", "azure"}:
         typer.secho(f"deployment is unsupported for cloud {cloud!r}", fg=typer.colors.RED)
@@ -113,6 +161,7 @@ def plan(
                 "provider": cloud,
                 "candidate": {"tag": candidate.tag, "digest": candidate.digest},
                 "image": candidate.reference(env["IMAGE"]),
+                "configuration": configuration.as_dict() if configuration else None,
                 "changes": changes,
             },
             indent=2,
@@ -126,9 +175,22 @@ def status(
 ) -> None:
     """Report desired and running digest, health, and rollback availability."""
     env = load_env()
+    configuration = _local_configuration_status(env, refresh_terraform=True)
     results = [_release_status(env, name) for name in _targets(role)]
-    typer.echo(json.dumps({"schema_version": 1, "roles": results}, indent=2, sort_keys=True))
-    if not all(item.get("healthy") is True for item in results):
+    typer.echo(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "configuration": configuration.as_dict() if configuration else None,
+                "roles": results,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    if (configuration is not None and not configuration.current) or not all(
+        item.get("healthy") is True for item in results
+    ):
         raise typer.Exit(1)
 
 
@@ -143,7 +205,13 @@ def _evidence_matches(env: dict[str, str], role: str, release: Release) -> bool:
                 f"cat /opt/research/{role}/.release-evidence",
             ]
         )
-        return parse_release_env(value) == release and "RELEASE_ID=" in value
+        fingerprint = env.get("RP_CONFIG_FINGERPRINT")
+        fingerprint_matches = (
+            fingerprint is None or f"RP_CONFIG_FINGERPRINT={fingerprint}\n" in value + "\n"
+        )
+        return (
+            parse_release_env(value) == release and "RELEASE_ID=" in value and fingerprint_matches
+        )
     except (subprocess.CalledProcessError, ValueError):
         return False
 
@@ -172,6 +240,14 @@ def doctor(
         checks.append({"check": "configuration", "passed": False, "missing": missing})
     else:
         checks.append({"check": "configuration", "passed": cloud in required})
+    declarative = _local_configuration_status(env, refresh_terraform=True)
+    checks.append(
+        {
+            "check": "configuration.sources-current",
+            "passed": declarative is None or declarative.current,
+            "reasons": list(declarative.reasons) if declarative else [],
+        }
+    )
 
     for name in _targets(role):
         state = _release_status(env, name)

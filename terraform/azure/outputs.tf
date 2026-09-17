@@ -1,6 +1,28 @@
 # Every provider module emits the same output names. This is where the
 # abstraction genuinely holds.
 
+output "environment" {
+  value = var.env
+}
+
+output "provider" {
+  value = "azure"
+}
+
+output "configuration" {
+  value = {
+    region = var.region
+  }
+}
+
+output "subscription_id" {
+  value = var.subscription_id
+}
+
+output "resource_group" {
+  value = azurerm_resource_group.main.name
+}
+
 output "storage_uri" {
   value = "abfs://${azurerm_storage_container.data.name}@${azurerm_storage_account.data.name}.dfs.core.windows.net"
 }
@@ -71,6 +93,10 @@ output "storage_contract" {
 
 output "registry" {
   value = azurerm_container_registry.images.login_server
+}
+
+output "image_repository" {
+  value = "${azurerm_container_registry.images.login_server}/research/base"
 }
 
 output "batch_job_name" {
