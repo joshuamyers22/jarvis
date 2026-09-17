@@ -206,6 +206,16 @@ build {
     destination = "/tmp/jarvis-compose@.service"
   }
 
+  provisioner "file" {
+    source      = "${path.root}/files/jarvis-notebook-storage"
+    destination = "/tmp/jarvis-notebook-storage"
+  }
+
+  provisioner "file" {
+    source      = "${path.root}/files/jarvis-notebook-storage.service"
+    destination = "/tmp/jarvis-notebook-storage.service"
+  }
+
   provisioner "shell" {
     environment_vars = [
       "BUILDX_VERSION=${var.buildx_version}",

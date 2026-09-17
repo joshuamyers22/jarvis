@@ -50,6 +50,9 @@ TERRAFORM_MANAGED_KEYS = frozenset(
         "RP_AZURE_KEY_VAULT_URI",
         "RP_VENDOR_CREDENTIAL_SECRET_ID",
         "RP_FEED_CREDENTIAL_SECRET_ID",
+        "RP_NOTEBOOK_STORAGE_MODE",
+        "RP_NOTEBOOK_STORAGE_ID",
+        "RP_NOTEBOOK_STORAGE_ACCESS_POINT_ID",
         "NOTEBOOKS_HOST_PATH",
         "CONTROL_HOST",
         "FEED_HOST",
@@ -296,11 +299,24 @@ def _terraform_values(
                 item = contract.get(name, {})
                 if isinstance(item, dict) and item.get("secret_id"):
                     values[env_key] = str(item["secret_id"])
+        notebook_storage = _required_output(outputs, "notebook_storage")
+        if not isinstance(notebook_storage, dict) or notebook_storage.get("mode") != "gcp-pd":
+            raise ConfigurationError("GCP notebook_storage must declare gcp-pd mode")
+        values["RP_NOTEBOOK_STORAGE_MODE"] = "gcp-pd"
+        values["RP_NOTEBOOK_STORAGE_ID"] = str(_required_output(notebook_storage, "disk_name"))
+        values["NOTEBOOKS_HOST_PATH"] = str(_required_output(notebook_storage, "host_mount_path"))
     elif provider == "aws":
         values["RP_BATCH_JOB_QUEUE"] = str(_required_output(outputs, "batch_job_queue"))
         notebook_efs = outputs.get("notebook_efs")
         if isinstance(notebook_efs, dict) and notebook_efs.get("host_mount_path"):
+            values["RP_NOTEBOOK_STORAGE_MODE"] = "aws-efs"
+            values["RP_NOTEBOOK_STORAGE_ID"] = str(_required_output(notebook_efs, "file_system_id"))
+            values["RP_NOTEBOOK_STORAGE_ACCESS_POINT_ID"] = str(
+                _required_output(notebook_efs, "access_point_id")
+            )
             values["NOTEBOOKS_HOST_PATH"] = str(notebook_efs["host_mount_path"])
+        elif environment == "prod":
+            raise ConfigurationError("production AWS requires enable_notebook_efs")
         values["AIRFLOW_SECRETS_KWARGS"] = json.dumps(
             {
                 "connections_prefix": "airflow/connections",

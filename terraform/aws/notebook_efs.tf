@@ -46,6 +46,18 @@ check "notebook_efs_mode" {
   }
 }
 
+check "shared_notebook_efs_requires_approval" {
+  assert {
+    condition = (
+      !var.enable_notebook_efs ||
+      local.create_notebook_efs ||
+      (var.notebook_efs_shared_environment_approval != null &&
+      var.notebook_efs_shared_backup_reference != null)
+    )
+    error_message = "An existing/shared notebook EFS requires sharing approval and a backup reference."
+  }
+}
+
 resource "aws_efs_file_system" "notebooks" {
   count = local.create_notebook_efs ? 1 : 0
 

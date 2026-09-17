@@ -20,7 +20,7 @@ variable "zone" {
 
 variable "notebook_snapshot_retention_days" {
   type        = number
-  description = "Days to retain automatic notebook boot-disk snapshots."
+  description = "Days to retain automatic notebook data-disk snapshots."
   default     = 14
 
   validation {
@@ -30,6 +30,20 @@ variable "notebook_snapshot_retention_days" {
       floor(var.notebook_snapshot_retention_days) == var.notebook_snapshot_retention_days
     )
     error_message = "notebook_snapshot_retention_days must be a whole number from 7 through 30."
+  }
+}
+
+variable "notebook_data_disk_size_gb" {
+  type        = number
+  description = "Size of the encrypted persistent disk mounted at /data/notebooks."
+  default     = 200
+
+  validation {
+    condition = (
+      var.notebook_data_disk_size_gb >= 50 &&
+      floor(var.notebook_data_disk_size_gb) == var.notebook_data_disk_size_gb
+    )
+    error_message = "notebook_data_disk_size_gb must be a whole number of at least 50."
   }
 }
 

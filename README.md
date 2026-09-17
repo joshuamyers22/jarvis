@@ -128,7 +128,7 @@ Before production use, address [the readiness findings](ADVERSARIAL_REVIEW.md):
 - provide private networking and remote Terraform state;
 - configure least-privilege identities and provider secret stores;
 - add backups, restore tests, monitoring, alerts, and runbooks;
-- choose and test a notebook backup/synchronization strategy;
+- execute the live notebook replacement-host restore drill and retain its evidence;
 - validate resource sizing, retention, recovery objectives, and cost controls.
 
 Azure currently uses Container Instances rather than Container Apps Jobs; read

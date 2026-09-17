@@ -22,8 +22,8 @@ services:
       RP_RESOURCE_GROUP: ${RP_RESOURCE_GROUP:-}
       PYTHONPATH: /app
     volumes:
-      # Local default. compose/notebook.efs.yml replaces this target with a
-      # verified host bind mount when NOTEBOOKS_HOST_PATH is configured.
+      # Local default. compose/notebook.storage.yml replaces this target with a
+      # verified durable bind mount when NOTEBOOKS_HOST_PATH is configured.
       - notebooks:/data/notebooks
     logging:
       driver: json-file

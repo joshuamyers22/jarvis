@@ -25,6 +25,7 @@ output "configuration" {
     scratch_retention_days       = var.scratch_delete_after_days
     noncurrent_version_days      = var.noncurrent_version_delete_after_days
     notebook_snapshot_days       = var.notebook_snapshot_retention_days
+    notebook_data_disk_size_gb   = var.notebook_data_disk_size_gb
     host_images                  = var.host_images
     host_replacement_role        = var.host_replacement_role
   }
@@ -36,7 +37,7 @@ output "host_image_contract" {
     images              = var.host_images
     startup_scripts     = false
     build_manifest_path = "/etc/jarvis-host-image.json"
-    baked_prerequisites = ["docker-ce", "docker-compose-plugin", "google-cloud-ops-agent", "jarvis-compose-supervisor", "rsync", "os-hardening"]
+    baked_prerequisites = ["docker-ce", "docker-compose-plugin", "google-cloud-ops-agent", "jarvis-compose-supervisor", "jarvis-notebook-storage", "rsync", "os-hardening"]
     update_strategy     = "change one role image reference and replace that role through a reviewed Terraform plan"
     rollback_strategy   = "restore the prior exact image reference through a reviewed Terraform plan"
     replacement_role    = var.host_replacement_role
@@ -426,6 +427,22 @@ output "instances" {
   }
 }
 
+output "notebook_storage" {
+  description = "Durable notebook filesystem and recovery contract."
+  value = {
+    mode                      = "gcp-pd"
+    disk_name                 = google_compute_disk.notebooks.name
+    device_name               = "jarvis-notebooks"
+    host_mount_path           = "/mnt/jarvis-notebooks"
+    encrypted                 = true
+    encryption                = "google-managed-at-rest"
+    filesystem                = "ext4"
+    snapshot_policy           = google_compute_resource_policy.notebook_snapshots.name
+    snapshot_retention_days   = var.notebook_snapshot_retention_days
+    survives_host_replacement = true
+  }
+}
+
 output "private_ips" {
   value = {
     control  = google_compute_instance.control.network_interface[0].network_ip
@@ -486,7 +503,7 @@ output "recovery_contract" {
     data_canary_prefix        = "gs://${google_storage_bucket.data.name}/recovery-drills/"
     evidence_prefix           = "gs://${google_storage_bucket.backup.name}/recovery-drills/"
     notebook_snapshot_policy  = google_compute_resource_policy.notebook_snapshots.name
-    notebook_source_disk      = google_compute_instance.notebook.name
+    notebook_source_disk      = google_compute_disk.notebooks.name
     snapshot_retention_days   = var.notebook_snapshot_retention_days
     source_disk_delete_policy = google_compute_resource_policy.notebook_snapshots.snapshot_schedule_policy[0].retention_policy[0].on_source_disk_delete
     objectives = {

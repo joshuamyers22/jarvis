@@ -160,3 +160,62 @@ run "duplicate_storage_boundaries_are_rejected" {
 
   expect_failures = [aws_s3_bucket.data]
 }
+
+run "stack_owned_notebook_efs_is_encrypted_scoped_and_backed_up" {
+  command = apply
+
+  variables {
+    enable_notebook_efs = true
+  }
+
+  assert {
+    condition = (
+      aws_efs_file_system.notebooks[0].encrypted &&
+      aws_efs_backup_policy.notebooks[0].backup_policy[0].status == "ENABLED" &&
+      aws_efs_access_point.notebooks[0].posix_user[0].uid == 50000 &&
+      aws_efs_access_point.notebooks[0].root_directory[0].path == "/notebooks" &&
+      output.notebook_efs.transport_encryption_required &&
+      output.notebook_efs.iam_authorization_required &&
+      output.notebook_efs.backup_managed_by_this_stack &&
+      !output.notebook_efs.shared_environment
+    )
+    error_message = "Stack-owned EFS must be encrypted, access-point scoped, IAM authorized, and backed up."
+  }
+}
+
+run "shared_notebook_efs_without_approval_is_rejected" {
+  command = plan
+
+  variables {
+    enable_notebook_efs                         = true
+    notebook_efs_file_system_id                 = "fs-0123456789abcdef0"
+    notebook_efs_access_point_id                = "fsap-0123456789abcdef0"
+    notebook_efs_mount_target_security_group_id = "sg-0123456789abcdef0"
+  }
+
+  expect_failures = [check.shared_notebook_efs_requires_approval]
+}
+
+run "shared_notebook_efs_records_approval" {
+  command = apply
+
+  variables {
+    enable_notebook_efs                         = true
+    notebook_efs_file_system_id                 = "fs-0123456789abcdef0"
+    notebook_efs_access_point_id                = "fsap-0123456789abcdef0"
+    notebook_efs_mount_target_security_group_id = "sg-0123456789abcdef0"
+    notebook_efs_shared_environment_approval    = "DATA-123"
+    notebook_efs_shared_backup_reference        = "aws-backup-plan/notebooks"
+  }
+
+  assert {
+    condition = (
+      output.notebook_efs.shared_environment &&
+      output.notebook_efs.sharing_approval == "DATA-123" &&
+      output.notebook_efs.backup_reference == "aws-backup-plan/notebooks" &&
+      strcontains(output.notebook_efs.fstab_entry, "tls,iam") &&
+      strcontains(output.notebook_efs.fstab_entry, "accesspoint=fsap-0123456789abcdef0")
+    )
+    error_message = "Shared EFS must retain approval and its TLS/IAM mount contract."
+  }
+}

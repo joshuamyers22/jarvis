@@ -91,7 +91,53 @@ def test_notebook_efs_fails_closed_and_adds_overlay(monkeypatch: MonkeyPatch) ->
 
     files = deploy._compose_files(
         "notebook",
-        {"NOTEBOOKS_HOST_PATH": "/mnt/jarvis notebooks"},
+        {
+            "NOTEBOOKS_HOST_PATH": "/mnt/jarvis notebooks",
+            "RP_NOTEBOOK_STORAGE_MODE": "aws-efs",
+            "RP_NOTEBOOK_STORAGE_ID": "fs-0123456789abcdef0",
+            "RP_NOTEBOOK_STORAGE_ACCESS_POINT_ID": "fsap-0123456789abcdef0",
+        },
+        "/opt/research/notebook",
+        "notebook-host",
+    )
+
+    assert len(calls) == 1
+    assert calls[0][:2] == ["ssh", "notebook-host"]
+    assert "mountpoint -q -- '/mnt/jarvis notebooks'" in calls[0][2]
+    assert "findmnt -n -t nfs4" in calls[0][2]
+    assert "fs-0123456789abcdef0:/" in calls[0][2]
+    assert "accesspoint=fsap-0123456789abcdef0" in calls[0][2]
+    assert "$1 == source" in calls[0][2]
+    assert "/etc/fstab" in calls[0][2]
+    assert files == [
+        "/opt/research/notebook/compose/notebook.yml",
+        "/opt/research/notebook/compose/notebook.storage.yml",
+    ]
+
+
+def test_notebook_storage_requires_declared_mode(monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setattr(deploy, "sh", lambda command: None)
+
+    with raises(typer.Exit):
+        deploy._compose_files(
+            "notebook",
+            {"NOTEBOOKS_HOST_PATH": "/mnt/jarvis-notebooks"},
+            "/opt/research/notebook",
+            "notebook-host",
+        )
+
+
+def test_gcp_notebook_disk_uses_baked_verifier(monkeypatch: MonkeyPatch) -> None:
+    calls: list[list[str]] = []
+    monkeypatch.setattr(deploy, "sh", lambda command: calls.append(command))
+
+    files = deploy._compose_files(
+        "notebook",
+        {
+            "NOTEBOOKS_HOST_PATH": "/mnt/jarvis-notebooks",
+            "RP_NOTEBOOK_STORAGE_MODE": "gcp-pd",
+            "RP_NOTEBOOK_STORAGE_ID": "research-prod-notebooks",
+        },
         "/opt/research/notebook",
         "notebook-host",
     )
@@ -100,13 +146,10 @@ def test_notebook_efs_fails_closed_and_adds_overlay(monkeypatch: MonkeyPatch) ->
         [
             "ssh",
             "notebook-host",
-            "test -d '/mnt/jarvis notebooks' && mountpoint -q -- '/mnt/jarvis notebooks'",
+            "sudo /usr/local/sbin/jarvis-notebook-storage verify /mnt/jarvis-notebooks",
         ]
     ]
-    assert files == [
-        "/opt/research/notebook/compose/notebook.yml",
-        "/opt/research/notebook/compose/notebook.efs.yml",
-    ]
+    assert files[-1].endswith("notebook.storage.yml")
 
 
 def test_deployment_environment_is_an_explicit_non_secret_allowlist() -> None:

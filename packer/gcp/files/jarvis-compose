@@ -161,7 +161,10 @@ compose_with_tag() {
         echo "notebook storage is not a mounted directory: $host_path" >&2
         return 1
       }
-      args+=(-f "${role_dir}/compose/notebook.efs.yml")
+      if [[ -x /usr/local/sbin/jarvis-notebook-storage ]]; then
+        /usr/local/sbin/jarvis-notebook-storage verify "$host_path" >/dev/null
+      fi
+      args+=(-f "${role_dir}/compose/notebook.storage.yml")
     fi
   fi
 

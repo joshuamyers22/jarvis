@@ -111,6 +111,10 @@ output "instances" {
   value = module.platform.instances
 }
 
+output "notebook_storage" {
+  value = module.platform.notebook_storage
+}
+
 output "airflow_secrets_backend" {
   value = module.platform.airflow_secrets_backend
 }

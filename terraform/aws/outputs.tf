@@ -129,5 +129,12 @@ output "notebook_efs" {
     mount_target_security_group_id = local.create_notebook_efs ? aws_security_group.notebook_efs[0].id : var.notebook_efs_mount_target_security_group_id
     dns_name                       = "${local.notebook_efs_id}.efs.${var.region}.amazonaws.com"
     host_mount_path                = "/mnt/jarvis-notebooks"
+    transport_encryption_required  = true
+    iam_authorization_required     = true
+    backup_managed_by_this_stack   = local.create_notebook_efs
+    shared_environment             = !local.create_notebook_efs
+    sharing_approval               = var.notebook_efs_shared_environment_approval
+    backup_reference               = local.create_notebook_efs ? "aws_efs_backup_policy.notebooks" : var.notebook_efs_shared_backup_reference
+    fstab_entry                     = "${local.notebook_efs_id}:/ /mnt/jarvis-notebooks efs _netdev,tls,iam,accesspoint=${local.notebook_efs_access_point_id},noresvport 0 0"
   } : null
 }

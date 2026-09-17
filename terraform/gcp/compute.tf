@@ -93,8 +93,16 @@ resource "google_compute_instance" "notebook" {
   boot_disk {
     initialize_params {
       image = var.host_images.notebook
-      size  = 200
+      # Retain the legacy size so adding the independent data disk does not
+      # force replacement before an existing named volume can be migrated.
+      size = 200
     }
+  }
+
+  attached_disk {
+    source      = google_compute_disk.notebooks.self_link
+    device_name = "jarvis-notebooks"
+    mode        = "READ_WRITE"
   }
 
   network_interface {
@@ -123,10 +131,18 @@ resource "google_compute_instance" "notebook" {
   allow_stopping_for_update = true
 }
 
-# Notebook files currently live in Docker's named volume on the notebook boot
-# disk. Daily snapshots make that volume recoverable until Phase 3 separates it
-# from the machine image. Keeping snapshots after source-disk deletion protects
-# against an accidental VM replacement removing the last usable copy.
+resource "google_compute_disk" "notebooks" {
+  name                      = "${local.name_prefix}-notebooks"
+  project                   = var.project_id
+  zone                      = var.zone
+  type                      = "pd-balanced"
+  size                      = var.notebook_data_disk_size_gb
+  physical_block_size_bytes = 4096
+  labels                    = merge(local.common_labels, { storage_purpose = "notebooks" })
+}
+
+# The independent data disk survives notebook VM replacement. Daily snapshots
+# provide a second recovery boundary and remain after source-disk deletion.
 resource "google_compute_resource_policy" "notebook_snapshots" {
   name        = "${local.name_prefix}-notebook-daily"
   region      = var.region
@@ -157,6 +173,5 @@ resource "google_compute_disk_resource_policy_attachment" "notebook_snapshots" {
   name    = google_compute_resource_policy.notebook_snapshots.name
   project = var.project_id
   zone    = var.zone
-  # Compute Engine names an auto-created boot disk after its instance.
-  disk = google_compute_instance.notebook.name
+  disk    = google_compute_disk.notebooks.name
 }

@@ -129,6 +129,36 @@ variable "notebook_efs_owner_account_id" {
   description = "AWS account that owns an existing shared EFS file system. Defaults to the current account."
 }
 
+variable "notebook_efs_shared_environment_approval" {
+  type        = string
+  default     = null
+  nullable    = true
+  description = "Reviewed ticket/decision authorizing use of an EFS file system owned outside this environment."
+
+  validation {
+    condition = (
+      var.notebook_efs_shared_environment_approval == null ||
+      can(regex("^[A-Za-z0-9][A-Za-z0-9._:/@+-]{2,127}$", var.notebook_efs_shared_environment_approval))
+    )
+    error_message = "notebook_efs_shared_environment_approval must be a 3-128 character approval reference."
+  }
+}
+
+variable "notebook_efs_shared_backup_reference" {
+  type        = string
+  default     = null
+  nullable    = true
+  description = "AWS Backup plan or equivalent reviewed recovery reference for an existing shared EFS."
+
+  validation {
+    condition = (
+      var.notebook_efs_shared_backup_reference == null ||
+      can(regex("^[A-Za-z0-9][A-Za-z0-9._:/@+-]{2,255}$", var.notebook_efs_shared_backup_reference))
+    )
+    error_message = "notebook_efs_shared_backup_reference must be a 3-256 character recovery reference."
+  }
+}
+
 variable "notebook_efs_trusted_account_ids" {
   type        = list(string)
   default     = []

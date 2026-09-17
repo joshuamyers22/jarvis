@@ -63,7 +63,8 @@ contract and `runtime_secret_contract` as its non-secret secret-ID/IAM contract;
 see the [Cloud SQL runbook](../docs/cloud-sql.md) and
 [runtime-secrets runbook](../docs/runtime-secrets.md). The GCP
 `recovery_contract` exposes the non-production drill identity, notebook snapshot
-policy, evidence prefixes, and RPO/RTO boundaries described in the
+policy, independent data disk, replacement-host validation, evidence prefixes,
+and RPO/RTO boundaries described in the
 [recovery-drill runbook](../docs/recovery-drills.md). Data, Airflow
 logs, scratch, and backups use distinct resource-level boundaries; see the
 [storage-class runbook](../docs/storage-classes.md). Feed only non-secret outputs
@@ -81,3 +82,8 @@ EFS is intentionally AWS-specific and does not alter the provider-neutral data
 path: datasets and artifacts remain in object storage. See
 [`docs/notebooks.md`](../docs/notebooks.md#shared-notebooks-on-amazon-efs) for the
 mount, cross-environment, and recovery procedure.
+
+Using an existing EFS file system requires a reviewed
+`notebook_efs_shared_environment_approval` and a reviewed
+`notebook_efs_shared_backup_reference`. The output records both and the exact
+TLS/IAM/access-point fstab contract consumed by deployment checks.

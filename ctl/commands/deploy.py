@@ -12,6 +12,7 @@ Compose activation.
 from __future__ import annotations
 
 import json
+import re
 import shlex
 import subprocess
 from datetime import UTC, datetime
@@ -33,6 +34,8 @@ from ctl.configuration import ConfigurationError, require_current_configuration
 from ctl.release import Release, parse_release_env, resolve_digest
 
 ROLES = ("control", "feed", "notebook")
+AWS_EFS_ID_PATTERN = re.compile(r"fs-[0-9a-f]{8,40}")
+AWS_EFS_ACCESS_POINT_PATTERN = re.compile(r"fsap-[0-9a-f]{8,40}")
 
 
 def _activate_gcp_service(host: str, role: str) -> None:
@@ -131,15 +134,53 @@ def _compose_files(
         )
         raise typer.Exit(1)
 
+    storage_mode = env.get("RP_NOTEBOOK_STORAGE_MODE")
+    storage_id = env.get("RP_NOTEBOOK_STORAGE_ID", "")
     quoted_path = shlex.quote(notebooks_host_path)
-    sh(
-        [
-            "ssh",
-            host,
-            f"test -d {quoted_path} && mountpoint -q -- {quoted_path}",
-        ]
-    )
-    files.append(f"{remote_dir}/compose/notebook.efs.yml")
+    if storage_mode == "gcp-pd":
+        if not re.fullmatch(r"[a-z][a-z0-9-]{0,62}", storage_id):
+            typer.secho("invalid GCP notebook storage ID", fg=typer.colors.RED)
+            raise typer.Exit(1)
+        sh(
+            [
+                "ssh",
+                host,
+                f"sudo /usr/local/sbin/jarvis-notebook-storage verify {quoted_path}",
+            ]
+        )
+    elif storage_mode == "aws-efs":
+        access_point = env.get("RP_NOTEBOOK_STORAGE_ACCESS_POINT_ID", "")
+        if not AWS_EFS_ID_PATTERN.fullmatch(
+            storage_id
+        ) or not AWS_EFS_ACCESS_POINT_PATTERN.fullmatch(access_point):
+            typer.secho("invalid AWS EFS notebook storage identifiers", fg=typer.colors.RED)
+            raise typer.Exit(1)
+        awk_program = (
+            '$1 == source && $2 == target && $3 == "efs" { '
+            'tls=0; iam=0; ap=0; count=split($4, options, ","); '
+            "for (i=1; i<=count; i++) { "
+            'if (options[i] == "tls") tls=1; '
+            'if (options[i] == "iam") iam=1; '
+            "if (options[i] == access_point) ap=1; } "
+            "if (tls && iam && ap) valid=1 } END { exit(valid ? 0 : 1) }"
+        )
+        command = (
+            f"test -d {quoted_path} && mountpoint -q -- {quoted_path} && "
+            f"findmnt -n -t nfs4 --target {quoted_path} >/dev/null && "
+            "sudo awk "
+            f"-v source={shlex.quote(storage_id + ':/')} "
+            f"-v target={quoted_path} "
+            f"-v access_point={shlex.quote('accesspoint=' + access_point)} "
+            f"{shlex.quote(awk_program)} /etc/fstab"
+        )
+        sh(["ssh", host, command])
+    else:
+        typer.secho(
+            "NOTEBOOKS_HOST_PATH requires a supported RP_NOTEBOOK_STORAGE_MODE",
+            fg=typer.colors.RED,
+        )
+        raise typer.Exit(1)
+    files.append(f"{remote_dir}/compose/notebook.storage.yml")
     return files
 
 

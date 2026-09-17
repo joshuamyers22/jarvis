@@ -68,6 +68,8 @@ bash "$installer" --also-install --version="$OPS_AGENT_VERSION"
 install -d -m 0755 /opt/research
 install -m 0755 /tmp/jarvis-compose /usr/local/sbin/jarvis-compose
 install -m 0644 /tmp/jarvis-compose@.service /etc/systemd/system/jarvis-compose@.service
+install -m 0755 /tmp/jarvis-notebook-storage /usr/local/sbin/jarvis-notebook-storage
+install -m 0644 /tmp/jarvis-notebook-storage.service /etc/systemd/system/jarvis-notebook-storage.service
 systemctl daemon-reload
 install -d -m 0755 /etc/docker
 cat >/etc/docker/daemon.json <<'EOF'
@@ -107,7 +109,7 @@ sshd -t
 # jobs from silently changing a running machine underneath Terraform.
 systemctl disable --now apt-daily.timer apt-daily-upgrade.timer
 systemctl mask apt-daily.service apt-daily-upgrade.service
-systemctl enable docker.service google-cloud-ops-agent.service
+systemctl enable docker.service google-cloud-ops-agent.service jarvis-notebook-storage.service
 systemctl restart docker.service google-cloud-ops-agent.service
 
 docker_installed=$(dpkg-query -W -f='${Version}' docker-ce)

@@ -55,6 +55,8 @@ def test_gcp_host_builder_stays_private_and_pinned() -> None:
     assert "rsync_version" in source
     assert 'source      = "${path.root}/files/jarvis-compose"' in source
     assert 'source      = "${path.root}/files/jarvis-compose@.service"' in source
+    assert 'source      = "${path.root}/files/jarvis-notebook-storage"' in source
+    assert 'source      = "${path.root}/files/jarvis-notebook-storage.service"' in source
 
 
 def test_gcp_systemd_is_the_bounded_compose_lifecycle_owner() -> None:
@@ -85,6 +87,25 @@ def test_gcp_systemd_is_the_bounded_compose_lifecycle_owner() -> None:
     assert "restart: always" in base_compose
     assert base_compose.count("restart: unless-stopped") == 2
     assert systemd_compose.count('restart: "no"') == 4
+
+
+def test_notebook_storage_survives_gcp_host_replacement() -> None:
+    compute = Path("terraform/gcp/compute.tf").read_text()
+    storage = Path("packer/gcp/files/jarvis-notebook-storage").read_text()
+    unit = Path("packer/gcp/files/jarvis-notebook-storage.service").read_text()
+    compose = Path("compose/notebook.storage.yml").read_text()
+
+    assert 'resource "google_compute_disk" "notebooks"' in compute
+    assert 'device_name = "jarvis-notebooks"' in compute
+    assert "google_compute_disk.notebooks.name" in compute
+    assert "mkfs.ext4" in storage
+    assert "filesystem_uuid" in storage
+    assert "nodev" in storage and "nosuid" in storage
+    assert "JARVIS_NOTEBOOK_DEVICE" not in storage
+    assert "Requires=dev-disk-by\\x2did-google\\x2djarvis\\x2dnotebooks.device" in unit
+    assert "Before=jarvis-compose@notebook.service" in unit
+    assert "jarvis-notebook-storage verify" in Path("packer/gcp/files/jarvis-compose").read_text()
+    assert "NOTEBOOKS_HOST_PATH" in compose
 
 
 def test_database_migration_has_one_explicit_owner() -> None:

@@ -68,6 +68,10 @@ class DrillConfig:
         return f"research-{self.environment}-notebook-daily"
 
     @property
+    def notebook_data_disk(self) -> str:
+        return f"research-{self.environment}-notebooks"
+
+    @property
     def state_uri(self) -> str:
         return f"gs://{self.state_bucket}/{self.state_prefix}/default.tfstate"
 
@@ -151,8 +155,12 @@ class RecoveryDrill:
         self.config = config
         self.drill_id = safe_drill_id(drill_id)
         self.runner = runner
-        self.prefix = f"recovery-drill-{drill_id}"[:62].rstrip("-")
+        self.prefix = f"recovery-drill-{drill_id}"
         self.cleanup: dict[str, dict[str, str]] = {}
+
+    def _resource_name(self, suffix: str, max_length: int = 62) -> str:
+        stem_length = max_length - len(suffix) - 1
+        return f"{self.prefix[:stem_length].rstrip('-')}-{suffix}"
 
     def _gcloud(self, *args: str) -> list[str]:
         return ["gcloud", *args]
@@ -241,7 +249,7 @@ class RecoveryDrill:
     def cloud_sql(self) -> dict[str, Any]:
         started = utc_now()
         restore_point = started - timedelta(seconds=RPO_SECONDS)
-        target = f"{self.prefix}-sql"[:98].rstrip("-")
+        target = self._resource_name("sql", 98)
         created = False
         try:
             self.runner.run(
@@ -474,10 +482,12 @@ class RecoveryDrill:
             self._cleanup_commands("terraform_state", commands)
 
     def notebook_volume(self) -> dict[str, Any]:
-        snapshot = f"{self.prefix}-notebook"[:62].rstrip("-")
-        disk = f"{self.prefix}-notebook-restore"[:62].rstrip("-")
+        snapshot = self._resource_name("notebook")
+        disk = self._resource_name("notebook-restore")
+        replacement = self._resource_name("notebook-host")
         snapshot_created = False
         disk_created = False
+        replacement_created = False
         try:
             source = parse_json(
                 self.runner.run(
@@ -485,7 +495,7 @@ class RecoveryDrill:
                         "compute",
                         "disks",
                         "describe",
-                        self.config.notebook_instance,
+                        self.config.notebook_data_disk,
                         "--project",
                         self.config.project,
                         "--zone",
@@ -507,7 +517,7 @@ class RecoveryDrill:
                     "create",
                     snapshot,
                     "--source-disk",
-                    self.config.notebook_instance,
+                    self.config.notebook_data_disk,
                     "--source-disk-zone",
                     self.config.zone,
                     "--storage-location",
@@ -556,17 +566,126 @@ class RecoveryDrill:
                 raise DrillError("restored notebook disk is not READY from the expected snapshot")
             if int(restored.get("sizeGb", 0)) < int(source.get("sizeGb", 0)):
                 raise DrillError("restored notebook disk is smaller than its source")
+
+            notebook = parse_json(
+                self.runner.run(
+                    self._gcloud(
+                        "compute",
+                        "instances",
+                        "describe",
+                        self.config.notebook_instance,
+                        "--project",
+                        self.config.project,
+                        "--zone",
+                        self.config.zone,
+                        "--format=json",
+                    )
+                ),
+                "notebook instance",
+            )
+            metadata_items = notebook.get("metadata", {}).get("items", [])
+            metadata = {
+                item.get("key"): item.get("value")
+                for item in metadata_items
+                if isinstance(item, dict)
+            }
+            host_image = metadata.get("jarvis-host-image")
+            interfaces = notebook.get("networkInterfaces", [])
+            network = interfaces[0].get("network") if interfaces else None
+            subnetwork = interfaces[0].get("subnetwork") if interfaces else None
+            if not all(
+                isinstance(value, str) and value for value in (host_image, network, subnetwork)
+            ):
+                raise DrillError(
+                    "notebook instance lacks immutable image or private network metadata"
+                )
+            host_image = str(host_image)
+            network = str(network)
+            subnetwork = str(subnetwork)
+
+            self.runner.run(
+                self._gcloud(
+                    "compute",
+                    "instances",
+                    "create",
+                    replacement,
+                    "--project",
+                    self.config.project,
+                    "--zone",
+                    self.config.zone,
+                    "--image",
+                    host_image,
+                    "--network-interface",
+                    f"network={network},subnet={subnetwork},no-address",
+                    "--no-service-account",
+                    "--no-scopes",
+                    "--metadata",
+                    "enable-oslogin=TRUE,block-project-ssh-keys=TRUE",
+                    "--tags",
+                    "research",
+                    "--disk",
+                    f"name={disk},device-name=jarvis-notebooks,mode=rw,boot=no,auto-delete=no",
+                    "--quiet",
+                )
+            )
+            replacement_created = True
+            mount_status = parse_json(
+                self.runner.run(
+                    self._gcloud(
+                        "compute",
+                        "ssh",
+                        replacement,
+                        "--project",
+                        self.config.project,
+                        "--zone",
+                        self.config.zone,
+                        "--tunnel-through-iap",
+                        "--command",
+                        "for attempt in $(seq 1 60); do "
+                        "test -r /run/jarvis-notebook-storage.json && "
+                        "cat /run/jarvis-notebook-storage.json && exit 0; "
+                        "sleep 2; done; exit 1",
+                        "--quiet",
+                    )
+                ),
+                "replacement-host notebook mount status",
+            )
+            if (
+                mount_status.get("verified") is not True
+                or mount_status.get("mode") != "gcp-pd"
+                or mount_status.get("mount_path") != "/mnt/jarvis-notebooks"
+                or not mount_status.get("filesystem_uuid")
+            ):
+                raise DrillError("replacement host did not verify the restored notebook filesystem")
             return {
                 "status": "passed",
-                "source_disk": self.config.notebook_instance,
+                "source_disk": self.config.notebook_data_disk,
                 "snapshot": snapshot,
                 "restored_disk": disk,
+                "replacement_instance": replacement,
                 "source_size_gb": int(source["sizeGb"]),
                 "restored_size_gb": int(restored["sizeGb"]),
                 "snapshot_policy": self.config.notebook_snapshot_policy,
+                "filesystem_uuid": mount_status["filesystem_uuid"],
+                "mount_verified": True,
             }
         finally:
             commands = []
+            if replacement_created:
+                commands.append(
+                    self._gcloud(
+                        "compute",
+                        "instances",
+                        "delete",
+                        replacement,
+                        "--project",
+                        self.config.project,
+                        "--zone",
+                        self.config.zone,
+                        "--delete-disks=boot",
+                        "--quiet",
+                    )
+                )
             if disk_created:
                 commands.append(
                     self._gcloud(
@@ -684,7 +803,7 @@ def plan(config: DrillConfig, drill_id: str) -> dict[str, Any]:
             f"create and delete a PITR clone of {config.source_sql_instance}",
             f"restore a canary only under gs://{config.data_bucket}/recovery-drills/{drill_id}/",
             f"copy one noncurrent {config.state_prefix} state generation to an isolated drill key",
-            f"snapshot and restore {config.notebook_instance} to a temporary disk",
+            f"snapshot and restore {config.notebook_data_disk} on an isolated replacement host",
             f"append evidence under gs://{config.backup_bucket}/recovery-drills/{drill_id}/",
         ],
         "production_resources": "forbidden",

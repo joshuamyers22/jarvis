@@ -1,6 +1,6 @@
 # Jarvis production functionality plan
 
-Status: active — Phase 3 in progress
+Status: active — Phase 3 complete locally; Phase 4 next
 Prepared: 2026-09-16
 Reference reviewed: [`sixtycapital/infrastructure`](https://github.com/sixtycapital/infrastructure/tree/b6da17b68b9a2be41dbfa616506b70e30ce62c6e), tag `3.4.1`
 
@@ -439,10 +439,10 @@ Exit gate:
 
 Goal: turn the current SSH/Compose scaffold into a repeatable service deployment.
 
-Implementation status (2026-09-17): P3.1 through P3.5 are implemented and
+Implementation status (2026-09-17): P3.1 through P3.6 are implemented and
 locally validated. Live image replacement, service recovery, database migration,
-transactional rollback, and configuration-drift drills remain environment
-evidence; P3.6 is not yet complete.
+transactional rollback, configuration-drift, and notebook restore drills remain
+environment evidence.
 
 - **P3.1 Replace mutable VM bootstrap — complete locally.** A pinned Packer build
   now creates a private, Shielded Debian 12 image with exact Docker/Compose and
@@ -506,11 +506,23 @@ evidence; P3.6 is not yet complete.
   rollback restores the prior runtime file with the prior image. Tests cover
   precedence, group extensions, secret/resource boundaries, reproducibility,
   and drift. A live Terraform-change and host-drift exercise remains required.
-- **P3.6 Protect notebooks.** Attach an encrypted persistent disk, schedule snapshots,
-  or on AWS mount the encrypted EFS notebook access point; schedule snapshots/backups,
-  document private Git synchronization, and provide a tested replacement-host restore.
-  Verify EFS TLS/IAM authorization, fail closed on a missing mount, and explicitly
-  approve any filesystem shared across environment boundaries.
+- **P3.6 Protect notebooks — complete locally.** GCP now stores notebooks on an
+  independent, encrypted persistent disk that survives VM replacement. The baked
+  host service safely initializes only the exact attached device, mounts ext4 with
+  restrictive options, and verifies a filesystem-UUID marker before Jupyter can
+  start. Daily retained snapshots now target the data disk rather than the boot
+  disk. The quarterly recovery drill restores a snapshot onto an isolated private
+  replacement VM and requires a successful real mount before recording evidence.
+  Declarative configuration carries the storage mode and identity; Compose fails
+  closed on a missing mount. AWS EFS remains encrypted, access-point and IAM scoped,
+  automatically backed up when stack-owned, and deployment now verifies the live
+  NFSv4 mount plus its TLS/IAM/access-point fstab contract. Reusing EFS requires a
+  recorded cross-environment approval. The notebook runbook covers one-time volume
+  migration, private Git synchronization with individual credentials, host
+  replacement, snapshot recovery, and AWS Backup validation. Policy and unit tests
+  cover these contracts. The first live GCP replacement restore remains required;
+  AWS image baking, multi-host visibility, deny/allow, and backup-restore evidence
+  remain the later provider-parity work in JPR-017 rather than blocking GCP release.
 
 Exit gate:
 

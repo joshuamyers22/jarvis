@@ -14,7 +14,7 @@ Each run performs four independent exercises:
 | Cloud SQL PITR | New `recovery-drill-*-sql` clone at five minutes before drill start | Instance is `RUNNABLE` with one private IP; from the private control VM, SQL reads Airflow migration and row metadata and `airflow db check` passes | Delete clone |
 | Object version | Unique `recovery-drills/DRILL_ID/object.txt` canary | Overwrite, copy the original generation back with a generation-match precondition, and compare SHA-256 | Delete every canary generation by exact generation number |
 | Terraform state | Copy one noncurrent `environments/stage/default.tfstate` generation to an isolated `recovery-drills/` key | Parse in memory and verify Terraform state version, lineage, serial, and resource structure; state content is not included in evidence | Delete isolated copy by exact generation number |
-| Notebook volume | On-demand snapshot of the stopped notebook boot disk and a new temporary disk | Snapshot policy is attached; restored disk is `READY`, points to the expected snapshot, and is not smaller than its source | Delete restored disk and drill snapshot |
+| Notebook volume | On-demand snapshot of the stopped notebook data disk, a new temporary disk, and an isolated private replacement VM | Snapshot policy is attached; restored disk is `READY`, points to the expected snapshot, is not smaller than its source, and the replacement host mounts ext4 with the preserved filesystem-UUID marker | Delete replacement VM, restored disk, and drill snapshot |
 
 The Cloud SQL objective is RPO ≤ 300 seconds and RTO ≤ 7,200 seconds. A
 successful clone at the requested timestamp demonstrates that the transaction
@@ -22,12 +22,13 @@ logs cover the target RPO. RTO runs from the clone request through SQL and
 Airflow validation. A result outside either bound fails the drill; do not edit
 evidence to relabel it as successful.
 
-Notebook files currently live in Docker's named volume on the notebook boot
-disk. Terraform attaches a daily snapshot schedule with 14-day retention and
-keeps automatic snapshots after source-disk deletion. The drill requires the
-notebook VM to be stopped so the snapshot is filesystem-consistent. Phase 3 may
-move notebook data to a separate disk, but must preserve this output and drill
-contract during that migration.
+Notebook files live on the independent `research-ENV-notebooks` persistent disk.
+Terraform attaches a daily snapshot schedule with 14-day retention and keeps
+automatic snapshots after source-disk deletion. The drill requires the notebook
+VM to be stopped so the snapshot is filesystem-consistent. It creates a
+temporary VM from the same exact host image with no service account or external
+IP, attaches the restored disk, and reads the baked mount verifier's status over
+IAP. A disk that exists but cannot be mounted is a failed restore.
 
 ## Identity and access
 
@@ -35,7 +36,7 @@ Non-production environments create `research-ENV-recovery`. It receives:
 
 - Cloud SQL administration needed to clone and remove the temporary instance;
 - Compute Instance Admin, OS Login, and IAP tunnel access needed to restore a
-  disk and run validation on the private control node;
+  disk, create the identity-free replacement host, and run private validation;
 - `actAs` on the control service account only;
 - object administration conditioned to the data bucket's `recovery-drills/`
   prefix; and
@@ -122,7 +123,8 @@ bucket.
 Local evidence is written under ignored `recovery-evidence/`; the durable copy
 is `gs://STAGE_BACKUP_BUCKET/recovery-drills/DRILL_ID/evidence.json`. It records:
 
-- source and isolated target identifiers;
+- source and isolated target identifiers, restored filesystem UUID, and
+  replacement-host mount result;
 - requested recovery time and measured RPO/RTO;
 - SQL, Airflow, checksum, state-structure, and disk-source validation results;
 - operator, ticket, start/finish times, and per-step duration; and

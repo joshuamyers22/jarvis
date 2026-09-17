@@ -101,4 +101,8 @@ The notebook VM remains stopped when not in use. Once started, its enabled unit
 brings Jupyter back automatically. If `NOTEBOOKS_HOST_PATH` is configured, the
 supervisor refuses to start unless it is an absolute mounted directory, so an
 unavailable shared filesystem cannot silently redirect writes to the boot disk.
-Notebook data separation and replacement-host recovery remain P3.6 work.
+On GCP, `jarvis-notebook-storage.service` prepares the exact attached data
+device before Jupyter, and the supervisor revalidates its ext4 UUID marker and
+mount options. On AWS, `ctl deploy` requires the active EFS mount and its
+TLS/IAM/access-point fstab contract. Follow the
+[notebook recovery runbook](notebooks.md) for migration and replacement drills.

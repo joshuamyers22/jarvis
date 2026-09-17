@@ -3,7 +3,8 @@ Description=Jarvis %i Compose project
 Requires=docker.service
 PartOf=docker.service
 After=docker.service network-online.target
-Wants=network-online.target
+After=jarvis-notebook-storage.service
+Wants=network-online.target jarvis-notebook-storage.service
 StartLimitIntervalSec=300
 StartLimitBurst=3
 

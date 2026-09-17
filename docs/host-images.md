@@ -4,7 +4,9 @@ Jarvis control, feed, and notebook VMs boot from reviewed, immutable Compute
 Engine images. Runtime startup scripts do not install packages. The image
 contains Debian 12, exact Docker, Compose, rsync, and Google Cloud Ops Agent
 packages, baseline kernel and SSH policy, bounded Docker logs, and
-`/etc/jarvis-host-image.json` provenance.
+`/etc/jarvis-host-image.json` provenance. It also contains the notebook-disk
+preparation and verification service; that service is inert on hosts without
+the exact `jarvis-notebooks` device.
 It also contains the systemd/Compose supervisor described in the
 [service-supervision runbook](service-supervision.md); the unit is enabled only
 when a role is first deployed.
@@ -83,8 +85,10 @@ as a reviewed operator procedure.
 
 Promote in order: development, staging, then production. Replace only one role
 at a time. Before notebook replacement, stop the notebook, verify a current
-snapshot, and copy uncommitted work to durable storage; until P3.6 its named
-Docker volume is still on the boot disk.
+data-disk snapshot, and push or copy uncommitted work to durable storage. The
+independent notebook disk must remain attached in the reviewed plan; follow the
+one-time named-volume migration in the notebook runbook before the first
+replacement of an older host.
 
 For environments with deletion protection, use three separate reviewed plans:
 
@@ -107,8 +111,8 @@ Keep the prior exact image reference in the change record. If host validation
 fails, restore that reference for the affected role and repeat the same
 role-scoped replacement sequence. Do not rebuild an old revision or introduce
 an image-family pointer and call it a rollback. For notebooks,
-restore or attach the retained boot-disk snapshot as described in the recovery
-runbook before declaring user data recovered.
+reattach the unchanged data disk or restore its retained snapshot as described
+in the recovery runbook before declaring user data recovered.
 
 Retain at least the deployed image and its last known-good predecessor in every
 environment. Delete an older image only after no Terraform root references it,

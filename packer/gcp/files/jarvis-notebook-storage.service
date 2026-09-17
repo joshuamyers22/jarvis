@@ -1,0 +1,18 @@
+[Unit]
+Description=Prepare the Jarvis notebook data disk
+Requires=dev-disk-by\x2did-google\x2djarvis\x2dnotebooks.device
+After=local-fs-pre.target dev-disk-by\x2did-google\x2djarvis\x2dnotebooks.device
+Before=jarvis-compose@notebook.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/jarvis-notebook-storage prepare /mnt/jarvis-notebooks
+RemainAfterExit=yes
+UMask=0027
+NoNewPrivileges=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+
+[Install]
+WantedBy=multi-user.target

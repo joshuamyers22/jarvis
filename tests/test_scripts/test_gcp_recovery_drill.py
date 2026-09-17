@@ -66,6 +66,7 @@ def test_plan_names_only_isolated_restore_targets(tmp_path: Path) -> None:
     assert result["production_resources"] == "forbidden"
     assert all("prod" not in mutation for mutation in result["mutations"])
     assert any("recovery-drills" in mutation for mutation in result["mutations"])
+    assert any("replacement host" in mutation for mutation in result["mutations"])
 
 
 def test_generation_parser_requires_the_exact_object() -> None:
@@ -80,6 +81,18 @@ def test_drill_id_rejects_unsafe_or_production_names() -> None:
     for value in ("short", "UPPERCASE-NAME", "20260917-prod-drill"):
         with pytest.raises(DrillError):
             safe_drill_id(value)
+
+
+def test_long_drill_ids_keep_resource_suffixes_distinct(tmp_path: Path) -> None:
+    drill = RecoveryDrill(config(tmp_path), "a" * 49, FailedPreflightRunner())
+
+    names = {
+        drill._resource_name("notebook"),
+        drill._resource_name("notebook-restore"),
+        drill._resource_name("notebook-host"),
+    }
+    assert len(names) == 3
+    assert all(len(name) <= 62 for name in names)
 
 
 class FailedPreflightRunner:
@@ -107,3 +120,84 @@ def test_failed_preflight_skips_every_cloud_mutation(tmp_path: Path) -> None:
     assert len(runner.commands) == 1
     assert evidence_path.exists()
     assert "evidence_uri" not in evidence
+
+
+class NotebookRestoreRunner:
+    def __init__(self) -> None:
+        self.commands: list[list[str]] = []
+
+    def run(self, command: list[str]) -> str:
+        self.commands.append(command)
+        joined = " ".join(command)
+        if "disks describe research-stage-notebooks" in joined:
+            return json.dumps(
+                {
+                    "sizeGb": "200",
+                    "resourcePolicies": [
+                        "projects/jarvis-research-stage/regions/us-central1/"
+                        "resourcePolicies/research-stage-notebook-daily"
+                    ],
+                }
+            )
+        if "disks describe recovery-drill-" in joined:
+            return json.dumps(
+                {
+                    "status": "READY",
+                    "sizeGb": "200",
+                    "sourceSnapshot": (
+                        f"projects/test/global/snapshots/recovery-drill-{DRILL_ID}-notebook"
+                    ),
+                }
+            )
+        if "instances describe research-stage-notebook" in joined:
+            return json.dumps(
+                {
+                    "metadata": {
+                        "items": [
+                            {
+                                "key": "jarvis-host-image",
+                                "value": "projects/test/global/images/jarvis-host-image",
+                            }
+                        ]
+                    },
+                    "networkInterfaces": [
+                        {
+                            "network": "projects/test/global/networks/private",
+                            "subnetwork": "projects/test/regions/us-central1/subnetworks/workloads",
+                        }
+                    ],
+                }
+            )
+        if "compute ssh" in joined:
+            return json.dumps(
+                {
+                    "schema_version": 1,
+                    "mode": "gcp-pd",
+                    "filesystem_uuid": "1234-abcd",
+                    "mount_path": "/mnt/jarvis-notebooks",
+                    "verified": True,
+                }
+            )
+        return ""
+
+
+def test_notebook_restore_is_mounted_on_isolated_replacement_host(tmp_path: Path) -> None:
+    runner = NotebookRestoreRunner()
+    drill = RecoveryDrill(config(tmp_path), DRILL_ID, runner)
+
+    result = drill.notebook_volume()
+
+    assert result["status"] == "passed"
+    assert result["source_disk"] == "research-stage-notebooks"
+    assert result["mount_verified"] is True
+    assert result["filesystem_uuid"] == "1234-abcd"
+    create = next(
+        command for command in runner.commands if "instances" in command and "create" in command
+    )
+    assert "--no-service-account" in create
+    assert "--no-scopes" in create
+    assert any("device-name=jarvis-notebooks" in item for item in create)
+    cleanup = [" ".join(command) for command in runner.commands[-3:]]
+    assert "instances delete" in cleanup[0]
+    assert "disks delete" in cleanup[1]
+    assert "snapshots delete" in cleanup[2]

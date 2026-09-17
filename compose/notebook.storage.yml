@@ -1,0 +1,13 @@
+# Overlay for a notebook host with verified durable storage already mounted.
+#
+# The deployment CLI and GCP host supervisor fail closed before applying this
+# bind mount, preventing an unavailable disk/EFS mount from redirecting writes
+# into the disposable host filesystem.
+services:
+  jupyter:
+    volumes:
+      - type: bind
+        source: ${NOTEBOOKS_HOST_PATH:?set NOTEBOOKS_HOST_PATH to verified durable storage}
+        target: /data/notebooks
+        bind:
+          propagation: rprivate

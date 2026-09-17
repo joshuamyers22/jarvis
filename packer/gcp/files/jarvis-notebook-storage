@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+# Prepare or verify the independent GCP notebook data disk.
+set -euo pipefail
+
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+device=/dev/disk/by-id/google-jarvis-notebooks
+mount_path=${2:-/mnt/jarvis-notebooks}
+status_file=/run/jarvis-notebook-storage.json
+
+usage() {
+  echo "usage: jarvis-notebook-storage <prepare|verify> [absolute-mount-path]" >&2
+  exit 2
+}
+
+[[ $# -ge 1 && $# -le 2 ]] || usage
+action=$1
+[[ "$action" == "prepare" || "$action" == "verify" ]] || usage
+[[ "$mount_path" == /* && "$mount_path" != "/" ]] || {
+  echo "notebook mount path must be absolute and cannot be root" >&2
+  exit 1
+}
+[[ "$mount_path" == "/mnt/jarvis-notebooks" ]] || {
+  echo "GCP notebook storage must use /mnt/jarvis-notebooks" >&2
+  exit 1
+}
+[[ -b "$device" ]] || {
+  echo "notebook data device is missing: $device" >&2
+  exit 1
+}
+
+real_device=$(readlink -f -- "$device")
+root_source=$(findmnt -n -o SOURCE /)
+root_parent=$(lsblk -n -o PKNAME "$root_source" 2>/dev/null | head -n 1 || true)
+[[ "$real_device" != "$root_source" && "/dev/$root_parent" != "$real_device" ]] || {
+  echo "refusing to use the root device as notebook storage" >&2
+  exit 1
+}
+
+write_status() {
+  local filesystem_uuid=$1
+  local temporary
+  temporary=$(mktemp /run/jarvis-notebook-storage.XXXXXX)
+  printf '{"schema_version":1,"mode":"gcp-pd","device":"jarvis-notebooks","filesystem":"ext4","filesystem_uuid":"%s","mount_path":"%s","verified":true}\n' \
+    "$filesystem_uuid" "$mount_path" >"$temporary"
+  chmod 0444 "$temporary"
+  mv "$temporary" "$status_file"
+}
+
+verify() {
+  mountpoint -q -- "$mount_path" || {
+    echo "notebook storage is not mounted: $mount_path" >&2
+    return 1
+  }
+  local mounted_source mounted_type mounted_options filesystem_uuid marker_uuid
+  mounted_source=$(findmnt -n -o SOURCE --target "$mount_path")
+  mounted_type=$(findmnt -n -o FSTYPE --target "$mount_path")
+  mounted_options=$(findmnt -n -o OPTIONS --target "$mount_path")
+  [[ "$(readlink -f -- "$mounted_source")" == "$real_device" ]] || {
+    echo "notebook mount uses the wrong device" >&2
+    return 1
+  }
+  [[ "$mounted_type" == "ext4" ]] || {
+    echo "notebook data disk must use ext4" >&2
+    return 1
+  }
+  [[ ",$mounted_options," == *,nodev,* && ",$mounted_options," == *,nosuid,* ]] || {
+    echo "notebook mount lacks nodev or nosuid" >&2
+    return 1
+  }
+  filesystem_uuid=$(blkid -o value -s UUID "$real_device")
+  marker_uuid=$(sed -n 's/^filesystem_uuid=//p' "$mount_path/.jarvis-notebook-volume")
+  [[ -n "$filesystem_uuid" && "$marker_uuid" == "$filesystem_uuid" ]] || {
+    echo "notebook volume marker does not match the filesystem" >&2
+    return 1
+  }
+  write_status "$filesystem_uuid"
+}
+
+if [[ "$action" == "verify" ]]; then
+  verify
+  cat "$status_file"
+  exit 0
+fi
+
+install -d -m 0750 -o 50000 -g 50000 "$mount_path"
+if mountpoint -q -- "$mount_path"; then
+  verify
+  exit 0
+fi
+if findmnt -n --source "$real_device" >/dev/null 2>&1; then
+  echo "notebook data device is already mounted at an unexpected path" >&2
+  exit 1
+fi
+
+filesystem=$(blkid -o value -s TYPE "$real_device" 2>/dev/null || true)
+if [[ -z "$filesystem" ]]; then
+  mkfs.ext4 -F -m 0 -L jarvis-notebooks "$real_device"
+elif [[ "$filesystem" != "ext4" ]]; then
+  echo "notebook data device has unsupported filesystem: $filesystem" >&2
+  exit 1
+fi
+
+mount -t ext4 -o rw,noatime,nodev,nosuid "$real_device" "$mount_path"
+chown 50000:50000 "$mount_path"
+chmod 0750 "$mount_path"
+filesystem_uuid=$(blkid -o value -s UUID "$real_device")
+marker="$mount_path/.jarvis-notebook-volume"
+if [[ ! -e "$marker" ]]; then
+  printf 'schema_version=1\nmode=gcp-pd\nfilesystem_uuid=%s\n' "$filesystem_uuid" >"$marker"
+  chown 50000:50000 "$marker"
+  chmod 0440 "$marker"
+fi
+verify

@@ -3,7 +3,8 @@
 Jarvis builds non-secret runtime configuration from two authoritative sources:
 
 1. Terraform outputs own resource identities: hosts, buckets, database address,
-   region, image repository, batch service, and secret identifiers.
+   region, image repository, batch service, durable notebook storage, and secret
+   identifiers.
 2. Versioned TOML overlays own portable runtime policy: feed adapter settings,
    flush behavior, alert routing, and timezone.
 

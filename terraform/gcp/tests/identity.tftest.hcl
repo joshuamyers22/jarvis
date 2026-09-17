@@ -260,14 +260,21 @@ run "least_privilege_identity_contract" {
 
   assert {
     condition = (
+      google_compute_disk.notebooks.type == "pd-balanced" &&
+      google_compute_disk.notebooks.size == 200 &&
+      google_compute_instance.notebook.attached_disk[0].source == google_compute_disk.notebooks.self_link &&
+      google_compute_instance.notebook.attached_disk[0].device_name == "jarvis-notebooks" &&
       google_compute_resource_policy.notebook_snapshots.snapshot_schedule_policy[0].schedule[0].daily_schedule[0].days_in_cycle == 1 &&
       google_compute_resource_policy.notebook_snapshots.snapshot_schedule_policy[0].retention_policy[0].max_retention_days == 14 &&
       google_compute_resource_policy.notebook_snapshots.snapshot_schedule_policy[0].retention_policy[0].on_source_disk_delete == "KEEP_AUTO_SNAPSHOTS" &&
       google_compute_disk_resource_policy_attachment.notebook_snapshots.name == google_compute_resource_policy.notebook_snapshots.name &&
+      google_compute_disk_resource_policy_attachment.notebook_snapshots.disk == google_compute_disk.notebooks.name &&
+      output.notebook_storage.mode == "gcp-pd" &&
+      output.notebook_storage.survives_host_replacement &&
       output.recovery_contract.objectives.rpo_seconds == 300 &&
       output.recovery_contract.objectives.rto_seconds == 7200
     )
-    error_message = "Notebook snapshots and recovery objectives must remain explicit and testable."
+    error_message = "Notebook data must remain independent, encrypted, snapshotted, and testable."
   }
 
   assert {

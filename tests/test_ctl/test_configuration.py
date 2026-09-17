@@ -53,6 +53,41 @@ def _gcp_outputs(environment: str = "dev") -> dict[str, object]:
                 "feed_credentials": {"secret_id": f"{project}-feed"},
             }
         ),
+        "notebook_storage": _output(
+            {
+                "mode": "gcp-pd",
+                "disk_name": f"research-{environment}-notebooks",
+                "host_mount_path": "/mnt/jarvis-notebooks",
+            }
+        ),
+    }
+
+
+def _aws_outputs(environment: str = "dev", *, efs: bool = True) -> dict[str, object]:
+    return {
+        "environment": _output(environment),
+        "provider": _output("aws"),
+        "configuration": _output({"region": "us-east-1"}),
+        "storage_uri": _output("s3://research-data"),
+        "scratch_uri": _output("s3://research-scratch"),
+        "airflow_logs_uri": _output("s3://research-logs"),
+        "image_repository": _output("123456789012.dkr.ecr.us-east-1.amazonaws.com/base"),
+        "batch_job_name": _output("research-job"),
+        "batch_job_queue": _output("research-queue"),
+        "db_host": _output("database.internal"),
+        "instances": _output({"control": "i-control", "feed": "i-feed", "notebook": "i-notebook"}),
+        "airflow_secrets_backend": _output(
+            "airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend"
+        ),
+        "notebook_efs": _output(
+            {
+                "file_system_id": "fs-0123456789abcdef0",
+                "access_point_id": "fsap-0123456789abcdef0",
+                "host_mount_path": "/mnt/jarvis-notebooks",
+            }
+            if efs
+            else None
+        ),
     }
 
 
@@ -79,6 +114,9 @@ def test_render_combines_versioned_policy_with_terraform_outputs(tmp_path: Path)
     assert rendered.values["RP_PROJECT_ID"] == "research-dev"
     assert rendered.values["RP_FEED_SOURCE"] == "example"
     assert rendered.values["CONTROL_HOST"] == "research-dev-control"
+    assert rendered.values["RP_NOTEBOOK_STORAGE_MODE"] == "gcp-pd"
+    assert rendered.values["RP_NOTEBOOK_STORAGE_ID"] == "research-dev-notebooks"
+    assert rendered.values["NOTEBOOKS_HOST_PATH"] == "/mnt/jarvis-notebooks"
     assert rendered.values["RP_CONFIG_FINGERPRINT"] == rendered.fingerprint
     assert "AIRFLOW_DB_PASSWORD" not in rendered.values
     assert rendered.fingerprint.startswith("sha256:")
@@ -107,6 +145,35 @@ RP_FEED_DATASET = "sandbox-ticks"
     assert rendered.values["RP_FEED_SOURCE"] == "quant-feed"
     assert rendered.values["RP_FEED_DATASET"] == "sandbox-ticks"
     assert str(overlay) in rendered.manifest["sources"]
+
+
+def test_aws_efs_identity_is_rendered_but_mount_policy_stays_in_terraform(
+    tmp_path: Path,
+) -> None:
+    rendered = render_configuration(
+        _aws_outputs(),
+        environment="dev",
+        group="default",
+        overlays=[],
+        terraform_dir=tmp_path,
+        terraform_env_file=None,
+    )
+
+    assert rendered.values["RP_NOTEBOOK_STORAGE_MODE"] == "aws-efs"
+    assert rendered.values["RP_NOTEBOOK_STORAGE_ID"] == "fs-0123456789abcdef0"
+    assert rendered.values["RP_NOTEBOOK_STORAGE_ACCESS_POINT_ID"] == "fsap-0123456789abcdef0"
+
+
+def test_production_aws_requires_durable_notebook_storage(tmp_path: Path) -> None:
+    with raises(ConfigurationError, match="enable_notebook_efs"):
+        render_configuration(
+            _aws_outputs("prod", efs=False),
+            environment="prod",
+            group="default",
+            overlays=[],
+            terraform_dir=tmp_path,
+            terraform_env_file=None,
+        )
 
 
 def test_overlay_cannot_replace_terraform_owned_or_secret_values(tmp_path: Path) -> None:

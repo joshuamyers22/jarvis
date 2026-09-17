@@ -134,6 +134,8 @@ start/stop, and actAs on the three VM service accounts.
 - Confirm every role uses the intended immutable image tag.
 - Confirm each GCP role's systemd unit and JSON health are healthy; follow the
   [service-supervision runbook](service-supervision.md) for reboot and crash drills.
+- Confirm notebook storage verification and its latest scheduled recovery point;
+  follow the [notebook runbook](notebooks.md) before host replacement or restore.
 
 Useful commands:
 
