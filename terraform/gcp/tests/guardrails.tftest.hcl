@@ -31,8 +31,6 @@ mock_provider "google" {
     }
   }
 }
-mock_provider "random" {}
-
 variables {
   project_id                   = "jarvis-research-dev"
   env                          = "dev"

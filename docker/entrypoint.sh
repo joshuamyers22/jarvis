@@ -11,23 +11,11 @@
 set -euo pipefail
 
 wait_for_db() {
-  echo "[entrypoint] waiting for metadata database at ${AIRFLOW_DB_HOST}:${AIRFLOW_DB_PORT:-5432}"
+  echo "[entrypoint] waiting for metadata database"
   for _ in $(seq 1 60); do
-    if python - <<'PY' 2>/dev/null
-import os, sys
-import psycopg2
-try:
-    psycopg2.connect(
-        host=os.environ["AIRFLOW_DB_HOST"],
-        port=int(os.environ.get("AIRFLOW_DB_PORT", 5432)),
-        user=os.environ["AIRFLOW_DB_USER"],
-        password=os.environ["AIRFLOW_DB_PASSWORD"],
-        dbname=os.environ["AIRFLOW_DB_NAME"],
-        connect_timeout=3,
-    ).close()
-except Exception:
-    sys.exit(1)
-PY
+    # Airflow resolves the SQLAlchemy URL from its secrets backend, so the
+    # database password never needs to enter this script or the host env file.
+    if airflow db check >/dev/null 2>&1
     then
       echo "[entrypoint] database is up"
       return 0
@@ -55,14 +43,15 @@ case "${1:-}" in
     ;;
 
   feed)
-    exec python -m jobs.feed
+    exec python -m jobs.common.runtime_secrets exec --role feed -- python -m jobs.feed
     ;;
 
   job)
     shift
     [ $# -ge 1 ] || { echo "[entrypoint] usage: job <module> [args...]" >&2; exit 2; }
     module="$1"; shift
-    exec python -m "jobs.${module}" "$@"
+    exec python -m jobs.common.runtime_secrets exec --role job -- \
+      python -m "jobs.${module}" "$@"
     ;;
 
   *)

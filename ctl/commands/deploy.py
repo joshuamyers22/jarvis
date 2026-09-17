@@ -5,7 +5,7 @@ role reads it from there. Image drift between the scheduler, the feed and the
 batch runner produces failures that look exactly like data bugs.
 
 Provider differences are confined to ``_update_batch_image`` -- everything above
-it is the same three rsyncs and a compose restart on all three clouds.
+it is the same configuration sync and compose restart on all three clouds.
 """
 
 from __future__ import annotations
@@ -16,9 +16,9 @@ import shlex
 import typer
 
 from ctl.commands._util import (
-    ENV_FILE,
     REPO_ROOT,
     capture,
+    deployment_env_file,
     detect_cloud,
     eprint,
     load_env,
@@ -168,50 +168,64 @@ def deploy(
     cloud = detect_cloud(env)
     eprint(f"cloud: {cloud}  tag: {resolved}")
 
-    for name in targets:
-        host = ssh_target(env, name)
-        remote_dir = f"/opt/research/{name}"
-        eprint(f"--- deploying {name} @ {host}")
+    # Build a minimal payload once. The local .env may contain operator-only
+    # settings, but it is never copied to a host.
+    with deployment_env_file(env) as runtime_env:
+        for name in targets:
+            host = ssh_target(env, name)
+            remote_dir = f"/opt/research/{name}"
+            eprint(f"--- deploying {name} @ {host}")
 
-        sh(["ssh", host, f"mkdir -p {remote_dir}"])
-        sh(
-            [
-                "rsync",
-                "-az",
-                "--delete",
-                str(REPO_ROOT / "compose") + "/",
-                f"{host}:{remote_dir}/compose/",
-            ]
-        )
-        sh(["rsync", "-az", str(ENV_FILE), f"{host}:{remote_dir}/.env"])
-        # The one place the tag is written.
-        sh(["ssh", host, f"printf 'IMAGE_TAG={resolved}\\n' > {remote_dir}/.env.tag"])
+            sh(["ssh", host, f"mkdir -p {remote_dir}"])
+            sh(
+                [
+                    "rsync",
+                    "-az",
+                    "--delete",
+                    str(REPO_ROOT / "compose") + "/",
+                    f"{host}:{remote_dir}/compose/",
+                ]
+            )
+            sh(["rsync", "-az", str(runtime_env), f"{host}:{remote_dir}/runtime.env"])
+            # The one place the tag is written.
+            sh(["ssh", host, f"printf 'IMAGE_TAG={resolved}\\n' > {remote_dir}/.env.tag"])
+            # Remove the legacy full-env payload on the first P2.4 deployment.
+            sh(
+                [
+                    "ssh",
+                    host,
+                    (
+                        f"chmod 600 {remote_dir}/runtime.env {remote_dir}/.env.tag && "
+                        f"rm -f {remote_dir}/.env"
+                    ),
+                ]
+            )
 
-        compose_files = _compose_files(name, env, remote_dir, host)
-        compose_flags = " ".join(f"-f {shlex.quote(path)}" for path in compose_files)
-        env_flags = f"--env-file {remote_dir}/.env --env-file {remote_dir}/.env.tag"
-        compose_cmd = (
-            "compose() { if docker compose version >/dev/null 2>&1; "
-            'then docker compose "$@"; else docker-compose "$@"; fi; }; compose'
-        )
-        sh(
-            [
-                "ssh",
-                host,
-                f"cd {remote_dir} && {compose_cmd} {env_flags} {compose_flags} pull",
-            ]
-        )
-        sh(
-            [
-                "ssh",
-                host,
-                (
-                    f"cd {remote_dir} && {compose_cmd} {env_flags} "
-                    f"{compose_flags} up -d --remove-orphans"
-                ),
-            ]
-        )
-        eprint(f"    {name} is on {resolved}")
+            compose_files = _compose_files(name, env, remote_dir, host)
+            compose_flags = " ".join(f"-f {shlex.quote(path)}" for path in compose_files)
+            env_flags = f"--env-file {remote_dir}/runtime.env --env-file {remote_dir}/.env.tag"
+            compose_cmd = (
+                "compose() { if docker compose version >/dev/null 2>&1; "
+                'then docker compose "$@"; else docker-compose "$@"; fi; }; compose'
+            )
+            sh(
+                [
+                    "ssh",
+                    host,
+                    f"cd {remote_dir} && {compose_cmd} {env_flags} {compose_flags} pull",
+                ]
+            )
+            sh(
+                [
+                    "ssh",
+                    host,
+                    (
+                        f"cd {remote_dir} && {compose_cmd} {env_flags} "
+                        f"{compose_flags} up -d --remove-orphans"
+                    ),
+                ]
+            )
+            eprint(f"    {name} is on {resolved}")
 
     if update_batch and ("control" in targets or role == "all"):
         _update_batch_image(env, resolved)

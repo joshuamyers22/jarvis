@@ -80,15 +80,16 @@ resource "google_sql_database" "airflow" {
   instance = google_sql_database_instance.airflow.name
 }
 
-resource "random_password" "airflow_db" {
+ephemeral "random_password" "airflow_db" {
   length  = 32
   special = false
 }
 
 resource "google_sql_user" "airflow" {
-  name     = "airflow"
-  instance = google_sql_database_instance.airflow.name
-  password = random_password.airflow_db.result
+  name                = "airflow"
+  instance            = google_sql_database_instance.airflow.name
+  password_wo         = ephemeral.random_password.airflow_db.result
+  password_wo_version = 1
 }
 
 resource "google_secret_manager_secret" "airflow_db_password" {
@@ -100,6 +101,63 @@ resource "google_secret_manager_secret" "airflow_db_password" {
 }
 
 resource "google_secret_manager_secret_version" "airflow_db_password" {
-  secret      = google_secret_manager_secret.airflow_db_password.id
-  secret_data = random_password.airflow_db.result
+  secret                 = google_secret_manager_secret.airflow_db_password.id
+  secret_data_wo         = ephemeral.random_password.airflow_db.result
+  secret_data_wo_version = 1
+}
+
+# Airflow resolves config keys through CloudSecretManagerBackend. The secret
+# names match its default airflow-config prefix and hyphen separator.
+resource "google_secret_manager_secret" "airflow_sql_alchemy_conn" {
+  secret_id = "airflow-config-sql-alchemy-conn"
+  replication {
+    auto {}
+  }
+  labels = local.common_labels
+}
+
+resource "google_secret_manager_secret_version" "airflow_sql_alchemy_conn" {
+  secret = google_secret_manager_secret.airflow_sql_alchemy_conn.id
+  secret_data_wo = format(
+    "postgresql+psycopg2://airflow:%s@%s:5432/airflow?sslmode=require",
+    ephemeral.random_password.airflow_db.result,
+    google_sql_database_instance.airflow.private_ip_address,
+  )
+  secret_data_wo_version = 1
+}
+
+ephemeral "random_bytes" "airflow_fernet" {
+  length = 32
+}
+
+resource "google_secret_manager_secret" "airflow_fernet_key" {
+  secret_id = "airflow-config-fernet-key"
+  replication {
+    auto {}
+  }
+  labels = local.common_labels
+}
+
+resource "google_secret_manager_secret_version" "airflow_fernet_key" {
+  secret                 = google_secret_manager_secret.airflow_fernet_key.id
+  secret_data_wo         = replace(replace(ephemeral.random_bytes.airflow_fernet.base64, "+", "-"), "/", "_")
+  secret_data_wo_version = 1
+}
+
+# Credential values are deliberately seeded out of band. Terraform owns only
+# the containers and IAM, preventing vendor values from entering state.
+resource "google_secret_manager_secret" "vendor_credentials" {
+  secret_id = "${local.name_prefix}-vendor-credentials"
+  replication {
+    auto {}
+  }
+  labels = local.common_labels
+}
+
+resource "google_secret_manager_secret" "feed_credentials" {
+  secret_id = "${local.name_prefix}-feed-credentials"
+  replication {
+    auto {}
+  }
+  labels = local.common_labels
 }

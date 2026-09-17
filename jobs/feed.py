@@ -28,6 +28,7 @@ import websockets
 from jobs.common import storage
 from jobs.common.config import get_settings
 from jobs.common.logging import get_logger
+from jobs.common.runtime_secrets import credential_headers
 
 log = get_logger("jobs.feed")
 
@@ -100,7 +101,10 @@ async def _consume(buffer: Buffer, stop: asyncio.Event) -> None:
     while not stop.is_set():
         try:
             async with websockets.connect(
-                settings.feed_ws_url, ping_interval=20, ping_timeout=20
+                settings.feed_ws_url,
+                additional_headers=credential_headers("RP_FEED_CREDENTIAL"),
+                ping_interval=20,
+                ping_timeout=20,
             ) as socket:
                 log.info("feed.connected", extra={"url": settings.feed_ws_url})
                 backoff = 1.0  # only reset after a *successful* connect

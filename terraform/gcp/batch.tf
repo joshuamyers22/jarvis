@@ -50,6 +50,10 @@ resource "google_cloud_run_v2_job" "research" {
           name  = "RP_CLOUD"
           value = "gcp"
         }
+        env {
+          name  = "RP_VENDOR_CREDENTIAL_SECRET_ID"
+          value = google_secret_manager_secret.vendor_credentials.secret_id
+        }
       }
     }
   }

@@ -16,6 +16,8 @@ change in one file.
 
 from __future__ import annotations
 
+import base64
+from collections.abc import Mapping
 from enum import StrEnum
 
 
@@ -109,3 +111,63 @@ def require_sdk(cloud: Cloud) -> None:
             f"{module} is not installed; rebuild the image with "
             f"--build-arg CLOUD={PIP_EXTRA[cloud]}"
         ) from exc
+
+
+def _gcp_secret(reference: str, env: Mapping[str, str]) -> str:
+    from google.cloud import secretmanager
+
+    if reference.startswith("projects/"):
+        name = reference if "/versions/" in reference else f"{reference}/versions/latest"
+    else:
+        project = env.get("RP_PROJECT_ID")
+        if not project:
+            raise RuntimeError("RP_PROJECT_ID is required to resolve a GCP secret")
+        name = f"projects/{project}/secrets/{reference}/versions/latest"
+    response = secretmanager.SecretManagerServiceClient().access_secret_version(
+        request={"name": name}
+    )
+    return response.payload.data.decode("utf-8")
+
+
+def _aws_secret(reference: str, env: Mapping[str, str]) -> str:
+    import boto3
+
+    client = boto3.client("secretsmanager", region_name=env.get("RP_REGION") or None)
+    response = client.get_secret_value(SecretId=reference)
+    if "SecretString" in response:
+        return response["SecretString"]
+    value = response["SecretBinary"]
+    if isinstance(value, str):
+        return base64.b64decode(value).decode("utf-8")
+    return bytes(value).decode("utf-8")
+
+
+def _azure_secret(reference: str, env: Mapping[str, str]) -> str:
+    from azure.identity import DefaultAzureCredential
+    from azure.keyvault.secrets import SecretClient
+
+    vault_url = env.get("RP_AZURE_KEY_VAULT_URI")
+    if not vault_url:
+        raise RuntimeError("RP_AZURE_KEY_VAULT_URI is required to resolve an Azure secret")
+    credential = DefaultAzureCredential(
+        managed_identity_client_id=env.get("RP_AZURE_MANAGED_IDENTITY_CLIENT_ID") or None
+    )
+    value = SecretClient(vault_url=vault_url, credential=credential).get_secret(reference).value
+    if value is None:
+        raise RuntimeError("Azure secret has no value")
+    return value
+
+
+def fetch_secret(cloud: str, reference: str, env: Mapping[str, str]) -> str:
+    """Fetch one secret through attached identity without logging it."""
+    fetchers = {
+        Cloud.GCP: _gcp_secret,
+        Cloud.AWS: _aws_secret,
+        Cloud.AZURE: _azure_secret,
+    }
+    try:
+        provider = Cloud(cloud)
+        fetcher = fetchers[provider]
+    except (KeyError, ValueError):
+        raise RuntimeError(f"unsupported secret provider: {cloud or '<unset>'}") from None
+    return fetcher(reference, env)

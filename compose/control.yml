@@ -3,8 +3,9 @@
 #
 #   docker compose --env-file ../.env -f control.yml up -d
 #
-# Provider-neutral. Every cloud-specific value arrives from .env; there is no
-# branch in this file. Sized for the smallest instance each provider sells --
+# Provider-neutral. Non-secret configuration arrives from runtime.env; secrets
+# are resolved by Airflow through the provider backend and attached identity.
+# Sized for the smallest instance each provider sells --
 # if this box needs more than 2 GB, compute is in the wrong place.
 # =============================================================================
 x-airflow-common: &airflow-common
@@ -15,14 +16,14 @@ x-airflow-common: &airflow-common
     AIRFLOW_DB_HOST: ${AIRFLOW_DB_HOST}
     AIRFLOW_DB_PORT: ${AIRFLOW_DB_PORT:-5432}
     AIRFLOW_DB_USER: ${AIRFLOW_DB_USER}
-    AIRFLOW_DB_PASSWORD: ${AIRFLOW_DB_PASSWORD}
     AIRFLOW_DB_NAME: ${AIRFLOW_DB_NAME}
-    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: >-
-      postgresql+psycopg2://${AIRFLOW_DB_USER}:${AIRFLOW_DB_PASSWORD}@${AIRFLOW_DB_HOST}:${AIRFLOW_DB_PORT:-5432}/${AIRFLOW_DB_NAME}
+    # Logical config names, not secret values. The configured Airflow secrets
+    # backend resolves these through the VM's attached identity.
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_SECRET: sql_alchemy_conn
 
     # --- core ----------------------------------------------------------------
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
-    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
+    AIRFLOW__CORE__FERNET_KEY_SECRET: fernet_key
     AIRFLOW__CORE__LOAD_EXAMPLES: "False"
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "True"
     # Dispatch tasks are IO-bound polls, so parallelism here is cheap. The real
@@ -65,12 +66,10 @@ x-airflow-common: &airflow-common
     RP_SUBSCRIPTION_ID: ${RP_SUBSCRIPTION_ID:-}
     RP_AZURE_ACI_SUBNET_ID: ${RP_AZURE_ACI_SUBNET_ID:-}
     RP_AZURE_JOB_IDENTITY_ID: ${RP_AZURE_JOB_IDENTITY_ID:-}
+    RP_AZURE_KEY_VAULT_URI: ${RP_AZURE_KEY_VAULT_URI:-}
+    RP_AZURE_MANAGED_IDENTITY_CLIENT_ID: ${RP_AZURE_MANAGED_IDENTITY_CLIENT_ID:-}
+    RP_VENDOR_CREDENTIAL_SECRET_ID: ${RP_VENDOR_CREDENTIAL_SECRET_ID:-}
     PYTHONPATH: /opt/airflow:/app
-  volumes:
-    # Local development credentials only. On a cloud instance the attached
-    # identity (service account / instance profile / managed identity)
-    # supersedes this and the mount is absent.
-    - ${CLOUD_CREDS_PATH:-/dev/null}:${CLOUD_CREDS_MOUNT:-/tmp/.unused-creds}:ro
   logging:
     driver: json-file
     options: {max-size: "10m", max-file: "3"}

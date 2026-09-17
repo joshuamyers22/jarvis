@@ -92,6 +92,7 @@ docs/             setup, design, notebook, and operations guides
 - [Architecture](docs/architecture.md)
 - [Notebook storage and cross-machine workflows](docs/notebooks.md)
 - [Deployment and operations](docs/operations.md)
+- [Runtime secrets](docs/runtime-secrets.md)
 - [Supported build environment](docs/build-environment.md)
 - [Production boundary decision](docs/adr/0001-production-boundaries.md)
 - [Production functionality plan](PRODUCTION_PLAN.md)

@@ -393,9 +393,18 @@ Goal: close the data-loss and credential gaps before deploying real workloads.
   contract and enforces backup/PITR and production-HA invariants. The provisional
   five-minute RPO and two-hour RTO remain honestly marked pending the P2.5 staging
   restore benchmark rather than being claimed as validated service levels.
-- **P2.4 Remove secrets from deployment files.** Retrieve the database credential,
-  Fernet key, vendor credentials, and feed credentials at runtime through attached
-  identity. Ensure `ctl deploy` transfers only non-secret configuration.
+- **P2.4 Remove secrets from deployment files — complete locally.** GCP now
+  generates the database credential and Fernet key through ephemeral Terraform
+  values, writes them through provider write-only fields, and grants the control
+  identity access only to Airflow's two config secrets. Vendor and feed secret
+  containers are seeded out of band and readable only by their owning job or feed
+  identity. Airflow and the runtime credential loader resolve values through
+  attached identity; production starts fail closed when a required reference is
+  absent. `ctl deploy` rejects known secret-bearing keys and transfers only a
+  mode-`0600`, explicit non-secret allowlist as `runtime.env`, never the local
+  `.env`. Tests enforce the deployment boundary, credential contract, DAG
+  override guard, and per-secret IAM mapping; the seeding and rotation runbook is
+  documented.
 - **P2.5 Test restoration.** Automate quarterly Cloud SQL restore, object-version
   recovery, Terraform-state recovery, and notebook-volume restore exercises in a
   non-production project.

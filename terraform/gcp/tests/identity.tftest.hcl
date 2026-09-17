@@ -31,8 +31,6 @@ mock_provider "google" {
     }
   }
 }
-mock_provider "random" {}
-
 variables {
   project_id                 = "jarvis-research-dev"
   env                        = "dev"
@@ -166,9 +164,25 @@ run "least_privilege_identity_contract" {
       google_project_iam_member.control_sql_client.role == "roles/cloudsql.client" &&
       google_storage_bucket_iam_member.control_logs.role == "roles/storage.objectAdmin" &&
       google_storage_bucket_iam_member.control_logs.bucket == google_storage_bucket.airflow_logs.name &&
-      google_secret_manager_secret_iam_member.control_db_password.role == "roles/secretmanager.secretAccessor"
+      length(google_secret_manager_secret_iam_member.control_airflow_config) == 2 &&
+      alltrue([
+        for binding in google_secret_manager_secret_iam_member.control_airflow_config :
+        binding.role == "roles/secretmanager.secretAccessor"
+      ])
     )
-    error_message = "The control role must be limited to job execution, metadata database access, logs, and its database secret."
+    error_message = "The control role must be limited to job execution, metadata database access, logs, and its Airflow config secrets."
+  }
+
+  assert {
+    condition = (
+      google_secret_manager_secret_iam_member.job_vendor_credentials.secret_id == google_secret_manager_secret.vendor_credentials.id &&
+      google_secret_manager_secret_iam_member.job_vendor_credentials.role == "roles/secretmanager.secretAccessor" &&
+      google_secret_manager_secret_iam_member.feed_credentials.secret_id == google_secret_manager_secret.feed_credentials.id &&
+      google_secret_manager_secret_iam_member.feed_credentials.role == "roles/secretmanager.secretAccessor" &&
+      output.runtime_secret_contract.vendor_credentials.consumer == "job" &&
+      output.runtime_secret_contract.feed_credentials.consumer == "feed"
+    )
+    error_message = "Vendor and feed credentials must be isolated to their owning workload identity."
   }
 
   assert {

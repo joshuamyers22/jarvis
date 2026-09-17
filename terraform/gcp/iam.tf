@@ -268,9 +268,26 @@ resource "google_storage_bucket_iam_member" "notebook_scratch" {
 # No runtime identity receives backup-bucket access. P2.3/P2.5 will attach a
 # dedicated backup/restore principal when the recovery workflows are defined.
 
-# Secret access is granted per secret, never project-wide.
-resource "google_secret_manager_secret_iam_member" "control_db_password" {
-  secret_id = google_secret_manager_secret.airflow_db_password.id
+# Secret access is granted per workload and per secret, never project-wide.
+resource "google_secret_manager_secret_iam_member" "control_airflow_config" {
+  for_each = {
+    database = google_secret_manager_secret.airflow_sql_alchemy_conn.id
+    fernet   = google_secret_manager_secret.airflow_fernet_key.id
+  }
+
+  secret_id = each.value
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.roles["control"].email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "job_vendor_credentials" {
+  secret_id = google_secret_manager_secret.vendor_credentials.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.roles["job"].email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "feed_credentials" {
+  secret_id = google_secret_manager_secret.feed_credentials.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.roles["feed"].email}"
 }

@@ -99,6 +99,10 @@ output "airflow_secrets_backend" {
   value = module.platform.airflow_secrets_backend
 }
 
+output "runtime_secret_contract" {
+  value = module.platform.runtime_secret_contract
+}
+
 output "network" {
   value = {
     name                 = module.network.network_name

@@ -47,7 +47,7 @@ def shell(
             "ssh",
             "-t",
             host,
-            f"cd {remote_dir} && {compose_cmd} --env-file {remote_dir}/.env "
+            f"cd {remote_dir} && {compose_cmd} --env-file {remote_dir}/runtime.env "
             f"--env-file {remote_dir}/.env.tag -f {compose} exec {target} bash",
         ],
         check=False,

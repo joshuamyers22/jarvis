@@ -42,6 +42,9 @@ the existing data location must remain in place, logs and scratch receive only
 their named workload identities, and backup storage has no runtime member.
 Review the [Cloud SQL production policy](cloud-sql.md) before changing database
 availability, backup, PITR, maintenance, Query Insights, or deletion settings.
+Seed and rotate credentials only through the
+[runtime-secrets procedure](runtime-secrets.md); deployment files contain
+identifiers, never values.
 
 ```bash
 scripts/gcp-live.sh dev validate
@@ -54,6 +57,8 @@ Do not commit backend credentials, variable files, plans, or state.
 ## Production configuration
 
 - Keep `.env` mode `0600` and out of Git.
+- Do not add passwords, tokens, Fernet keys, or credential-file paths to `.env`;
+  `ctl deploy` rejects known secret-bearing keys and copies only its allowlist.
 - Use workload identity and the provider secret store, not downloaded keys.
 - Keep `RP_STORAGE_URI` and `AIRFLOW_REMOTE_LOGS` on the same provider.
 - Set `RP_SCRATCH_URI` from Terraform's `scratch_uri` output and keep

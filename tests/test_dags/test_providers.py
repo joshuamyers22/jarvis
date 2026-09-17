@@ -11,7 +11,7 @@ import pytest
 
 pytest.importorskip("airflow", reason="airflow not installed in this environment")
 
-from dags._providers import DISPATCHERS, _memory_mib  # noqa: E402
+from dags._providers import DISPATCHERS, _env_pairs, _memory_mib  # noqa: E402
 from jobs.common.cloud import Cloud  # noqa: E402
 
 
@@ -36,3 +36,14 @@ def test_dispatchers_share_a_signature():
         cloud: list(inspect.signature(fn).parameters) for cloud, fn in DISPATCHERS.items()
     }
     assert len(set(map(tuple, signatures.values()))) == 1, signatures
+
+
+def test_batch_overrides_reject_secret_values():
+    with pytest.raises(ValueError, match="RP_VENDOR_CREDENTIAL"):
+        _env_pairs({"RP_VENDOR_CREDENTIAL": "do-not-ship"})
+
+
+def test_batch_overrides_allow_non_secret_configuration():
+    assert _env_pairs({"RP_VAR_LOOKBACK_DAYS": "500"}) == [
+        {"name": "RP_VAR_LOOKBACK_DAYS", "value": "500"}
+    ]

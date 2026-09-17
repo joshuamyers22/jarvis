@@ -327,16 +327,19 @@ output "iam_contract" {
       control = sort([
         google_cloud_run_v2_job_iam_member.control_executor.role,
         google_storage_bucket_iam_member.control_logs.role,
-        google_secret_manager_secret_iam_member.control_db_password.role,
+        google_secret_manager_secret_iam_member.control_airflow_config["database"].role,
+        google_secret_manager_secret_iam_member.control_airflow_config["fernet"].role,
         google_artifact_registry_repository_iam_member.runtime_readers["control"].role,
       ])
       job = sort([
         google_storage_bucket_iam_member.job_data.role,
         google_storage_bucket_iam_member.job_scratch.role,
+        google_secret_manager_secret_iam_member.job_vendor_credentials.role,
         google_artifact_registry_repository_iam_member.runtime_readers["job"].role,
       ])
       feed = sort([
         google_storage_bucket_iam_member.feed_write.role,
+        google_secret_manager_secret_iam_member.feed_credentials.role,
         google_artifact_registry_repository_iam_member.runtime_readers["feed"].role,
       ])
       notebook = sort([
@@ -385,4 +388,30 @@ output "compute_networking" {
 
 output "airflow_secrets_backend" {
   value = "airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend"
+}
+
+output "runtime_secret_contract" {
+  description = "Non-secret identifiers and the exact workload allowed to resolve each value."
+  value = {
+    airflow_sql_alchemy_conn = {
+      secret_id = google_secret_manager_secret.airflow_sql_alchemy_conn.secret_id
+      consumer  = "control"
+      config    = "sql_alchemy_conn"
+    }
+    airflow_fernet_key = {
+      secret_id = google_secret_manager_secret.airflow_fernet_key.secret_id
+      consumer  = "control"
+      config    = "fernet_key"
+    }
+    vendor_credentials = {
+      secret_id = google_secret_manager_secret.vendor_credentials.secret_id
+      consumer  = "job"
+      env_ref   = "RP_VENDOR_CREDENTIAL_SECRET_ID"
+    }
+    feed_credentials = {
+      secret_id = google_secret_manager_secret.feed_credentials.secret_id
+      consumer  = "feed"
+      env_ref   = "RP_FEED_CREDENTIAL_SECRET_ID"
+    }
+  }
 }

@@ -20,9 +20,21 @@ from airflow.models import BaseOperator
 from jobs.common.cloud import Cloud
 
 CPU_MEMORY_DEFAULT = ("2", "4Gi")
+SECRET_VALUE_KEYS = frozenset(
+    {
+        "AIRFLOW_DB_PASSWORD",
+        "AIRFLOW_FERNET_KEY",
+        "RP_FEED_CREDENTIAL",
+        "RP_VENDOR_CREDENTIAL",
+    }
+)
 
 
 def _env_pairs(env: dict[str, str] | None) -> list[dict[str, str]]:
+    prohibited = SECRET_VALUE_KEYS.intersection(env or {})
+    if prohibited:
+        names = ", ".join(sorted(prohibited))
+        raise ValueError(f"DAG task overrides cannot contain secret values: {names}")
     return [{"name": k, "value": v} for k, v in (env or {}).items()]
 
 
@@ -133,6 +145,11 @@ def dispatch_azure(
         "RP_CLOUD": "azure",
         "RP_REGION": os.environ["RP_REGION"],
         "RP_RESOURCE_GROUP": os.environ["RP_RESOURCE_GROUP"],
+        "RP_VENDOR_CREDENTIAL_SECRET_ID": os.environ.get("RP_VENDOR_CREDENTIAL_SECRET_ID", ""),
+        "RP_AZURE_KEY_VAULT_URI": os.environ.get("RP_AZURE_KEY_VAULT_URI", ""),
+        "RP_AZURE_MANAGED_IDENTITY_CLIENT_ID": os.environ.get(
+            "RP_AZURE_MANAGED_IDENTITY_CLIENT_ID", ""
+        ),
     }
     base_env.update(env or {})
     identity_id = os.environ["RP_AZURE_JOB_IDENTITY_ID"]

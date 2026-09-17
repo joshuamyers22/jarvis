@@ -54,10 +54,13 @@ hold: `storage_uri`, `storage_locations`, `storage_contract`,
 `storage_lifecycle_policy`, `registry`,
 `batch_job_name`, `db_host`, and the identities each role runs as. GCP also
 emits `database_policy` as its explicit Cloud SQL availability and recovery
-contract; see the [Cloud SQL runbook](../docs/cloud-sql.md). Data, Airflow
+contract and `runtime_secret_contract` as its non-secret secret-ID/IAM contract;
+see the [Cloud SQL runbook](../docs/cloud-sql.md) and
+[runtime-secrets runbook](../docs/runtime-secrets.md). Data, Airflow
 logs, scratch, and backups use distinct resource-level boundaries; see the
-[storage-class runbook](../docs/storage-classes.md). Feed those outputs into
-`.env` and the rest of the platform does not know or care which cloud it is on.
+[storage-class runbook](../docs/storage-classes.md). Feed only non-secret outputs
+and secret identifiers into `.env`; values remain in the provider store and are
+resolved through attached identity.
 
 ## AWS shared notebook storage
 

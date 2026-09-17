@@ -17,6 +17,7 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 from jobs.common import storage
 from jobs.common.harness import JobContext, JobResult, entrypoint, skip_if_complete
 from jobs.common.logging import get_logger
+from jobs.common.runtime_secrets import credential_headers
 
 log = get_logger("jobs.pull_ohlcv")
 
@@ -67,7 +68,7 @@ def run(ctx: JobContext) -> JobResult:
     end = start + timedelta(days=1)
 
     frames: list[pd.DataFrame] = []
-    with httpx.Client() as client:
+    with httpx.Client(headers=credential_headers("RP_VENDOR_CREDENTIAL")) as client:
         for symbol in SYMBOLS:
             bars = _fetch_bars(client, symbol, start, end)
             if not bars:

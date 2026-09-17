@@ -24,7 +24,7 @@ def logs(
         'then docker compose "$@"; else docker-compose "$@"; fi; }; compose'
     )
     command = (
-        f"cd {remote_dir} && {compose_cmd} --env-file {remote_dir}/.env "
+        f"cd {remote_dir} && {compose_cmd} --env-file {remote_dir}/runtime.env "
         f"--env-file {remote_dir}/.env.tag -f {compose} logs --tail {lines}"
     )
     if follow:
