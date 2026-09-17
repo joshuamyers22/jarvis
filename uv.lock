@@ -473,7 +473,7 @@ wheels = [
 
 [[package]]
 name = "apache-airflow-providers-microsoft-azure"
-version = "15.0.0"
+version = "15.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "adlfs" },
@@ -510,9 +510,9 @@ dependencies = [
     { name = "msgraph-core" },
     { name = "msgraphfs" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9f/0a/df371e2537e2b989d95de8eb394a26700e71c3d24f4c4d04681f98af08c5/apache_airflow_providers_microsoft_azure-15.0.0.tar.gz", hash = "sha256:22569fefcc604c8ee7434af4bf01548b55d000914eb21f085b2d2398e0345d0b", size = 418856, upload-time = "2026-08-23T20:08:37.984Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f9/b7/abead1005bf058b0168fdacdb5f5de71def2f796f0e1d1daed770ce36acd/apache_airflow_providers_microsoft_azure-15.0.1.tar.gz", hash = "sha256:2ce22bbe5b716ba0e6bd9735aea086480f3db79dc165afd2542adb10445f70af", size = 420327, upload-time = "2026-08-29T23:53:05.452Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/50/f3/d3db47cc66223761da931ea31f960da999a41b4035266d7ba6b9bb3b2956/apache_airflow_providers_microsoft_azure-15.0.0-py3-none-any.whl", hash = "sha256:bc9aa8ac7e521c7ef0616b0102d39667b0dbdc6007a26b76c87b8a7fbc8b69ff", size = 207090, upload-time = "2026-08-23T20:08:10.866Z" },
+    { url = "https://files.pythonhosted.org/packages/a6/3b/8fa366bdf6f6e61334a74c7cc80b10186628bc9f8bf3bfb02285ccdec32c/apache_airflow_providers_microsoft_azure-15.0.1-py3-none-any.whl", hash = "sha256:4cfe03baec02158b08e80b80be10a904fc48cbdb1556c5fad19a47e733e106be", size = 207103, upload-time = "2026-08-29T23:53:01.139Z" },
 ]
 
 [[package]]
