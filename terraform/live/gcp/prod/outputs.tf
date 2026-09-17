@@ -38,6 +38,10 @@ output "storage_contract" {
   value = module.platform.storage_contract
 }
 
+output "storage_lifecycle_policy" {
+  value = module.platform.storage_lifecycle_policy
+}
+
 output "registry" {
   value = module.platform.registry
 }

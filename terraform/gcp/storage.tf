@@ -27,7 +27,9 @@ resource "google_storage_bucket" "data" {
   # Noncurrent versions exist to undo a bad overwrite, not as an archive.
   lifecycle_rule {
     condition {
+      age                = var.noncurrent_version_delete_after_days
       num_newer_versions = 3
+      with_state         = "ARCHIVED"
     }
     action {
       type = "Delete"
@@ -70,6 +72,15 @@ resource "google_storage_bucket" "scratch" {
   versioning {
     enabled = false
   }
+
+  lifecycle_rule {
+    condition {
+      age = var.scratch_delete_after_days
+    }
+    action {
+      type = "Delete"
+    }
+  }
 }
 
 resource "google_storage_bucket" "backup" {
@@ -83,5 +94,36 @@ resource "google_storage_bucket" "backup" {
 
   versioning {
     enabled = true
+  }
+}
+
+locals {
+  storage_lifecycle_policy = {
+    policy_version = "1"
+    raw = {
+      prefix                = "raw/"
+      transition_after_days = var.raw_coldline_after_days
+      transition_tier       = "COLDLINE"
+      delete_current        = false
+    }
+    noncurrent_data_versions = {
+      retained_count   = 3
+      minimum_age_days = var.noncurrent_version_delete_after_days
+      enforcement      = "count-and-minimum-age"
+    }
+    delete_recovery = {
+      minimum_age_days = var.noncurrent_version_delete_after_days
+      enforcement      = "object-versioning"
+    }
+    airflow_logs = {
+      delete_after_days = var.log_delete_after_days
+    }
+    scratch = {
+      delete_after_days = var.scratch_delete_after_days
+    }
+    backup = {
+      delete_after_days = null
+    }
+    provider_limitations = []
   }
 }

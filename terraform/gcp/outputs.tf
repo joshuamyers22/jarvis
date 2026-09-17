@@ -18,6 +18,8 @@ output "configuration" {
     workload_deletion_protection = var.workload_deletion_protection
     raw_coldline_days            = var.raw_coldline_after_days
     log_retention_days           = var.log_delete_after_days
+    scratch_retention_days       = var.scratch_delete_after_days
+    noncurrent_version_days      = var.noncurrent_version_delete_after_days
   }
 }
 
@@ -156,6 +158,11 @@ output "storage_locations" {
     scratch      = "gs://${google_storage_bucket.scratch.name}"
     backup       = "gs://${google_storage_bucket.backup.name}"
   }
+}
+
+output "storage_lifecycle_policy" {
+  description = "Approved storage lifecycle policy and provider enforcement semantics."
+  value       = local.storage_lifecycle_policy
 }
 
 output "storage_contract" {

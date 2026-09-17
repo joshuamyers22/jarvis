@@ -1,6 +1,6 @@
 # Jarvis production functionality plan
 
-Status: active — Phase 0 in progress
+Status: active — Phase 2 in progress
 Prepared: 2026-09-16
 Reference reviewed: [`sixtycapital/infrastructure`](https://github.com/sixtycapital/infrastructure/tree/b6da17b68b9a2be41dbfa616506b70e30ce62c6e), tag `3.4.1`
 
@@ -375,10 +375,15 @@ Goal: close the data-loss and credential gaps before deploying real workloads.
   emits the same storage-location and access-contract outputs. Runtime scratch
   configuration and a staged log-migration procedure are documented; provider
   policy tests cover the resulting boundaries.
-- **P2.2 Approve lifecycle policy.** Start with raw data transitioning to Coldline
-  after 90 days, temporary objects expiring after 14 days, Airflow logs after 90 days,
-  and three noncurrent object versions. Document exceptions for legal, vendor, or
-  reproducibility requirements.
+- **P2.2 Approve lifecycle policy — complete locally.** Policy version 1 transitions
+  current raw data after 90 days without deleting it, expires temporary objects after
+  14 days and Airflow logs after 90 days, preserves the newest three noncurrent data
+  versions behind a 30-day minimum recovery window on GCP/AWS, and leaves backups
+  without automatic deletion. Azure HNS cannot enable blob versioning, so it uses
+  30-day blob/container soft delete and explicitly reports overwrite recovery as a
+  provider-parity gap rather than claiming the three-version control.
+  Terraform outputs and policy tests cover every provider, and exceptions require a
+  documented legal, vendor, or reproducibility approval.
 - **P2.3 Harden Cloud SQL.** Use regional HA in production, private IP, automated
   storage growth, maintenance windows, query insights, deletion protection, backups,
   and PITR. Set explicit production RPO/RTO after a restore benchmark.

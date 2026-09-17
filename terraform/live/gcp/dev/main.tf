@@ -90,8 +90,8 @@ module "platform" {
   control_machine_type         = var.control_machine_type
   feed_machine_type            = var.feed_machine_type
   notebook_machine_type        = var.notebook_machine_type
-  raw_coldline_after_days      = 30
-  log_delete_after_days        = 30
+  raw_coldline_after_days      = 90
+  log_delete_after_days        = 90
 
 }
 

@@ -127,7 +127,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "data" {
     filter {}
     noncurrent_version_expiration {
       newer_noncurrent_versions = 3
-      noncurrent_days           = 30
+      noncurrent_days           = var.noncurrent_version_delete_after_days
     }
   }
 }
@@ -140,5 +140,47 @@ resource "aws_s3_bucket_lifecycle_configuration" "airflow_logs" {
     status = "Enabled"
     filter {}
     expiration { days = var.log_delete_after_days }
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "scratch" {
+  bucket = aws_s3_bucket.storage["scratch"].id
+
+  rule {
+    id     = "expire-scratch"
+    status = "Enabled"
+    filter {}
+    expiration { days = var.scratch_delete_after_days }
+  }
+}
+
+locals {
+  storage_lifecycle_policy = {
+    policy_version = "1"
+    raw = {
+      prefix                = "raw/"
+      transition_after_days = var.raw_glacier_after_days
+      transition_tier       = "GLACIER_IR"
+      delete_current        = false
+    }
+    noncurrent_data_versions = {
+      retained_count   = 3
+      minimum_age_days = var.noncurrent_version_delete_after_days
+      enforcement      = "count-and-minimum-age"
+    }
+    delete_recovery = {
+      minimum_age_days = var.noncurrent_version_delete_after_days
+      enforcement      = "object-versioning"
+    }
+    airflow_logs = {
+      delete_after_days = var.log_delete_after_days
+    }
+    scratch = {
+      delete_after_days = var.scratch_delete_after_days
+    }
+    backup = {
+      delete_after_days = null
+    }
+    provider_limitations = []
   }
 }

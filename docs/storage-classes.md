@@ -9,15 +9,16 @@ The other three locations are new.
 
 | Location | Contents | Runtime access | Versioning baseline |
 |---|---|---|---|
-| `data` | Raw, derived, and published artifacts | Job writes; feed ingests; notebook reads | Enabled |
-| `airflow_logs` | Remote task logs only | Control writes and reads | Disabled on GCP/AWS; account-level on Azure |
-| `scratch` | Disposable job and notebook intermediates | Job and notebook read/write | Disabled on GCP/AWS; account-level on Azure |
-| `backup` | Recovery exports and restore artifacts | No runtime access | Enabled |
+| `data` | Raw, derived, and published artifacts | Job writes; feed ingests; notebook reads | Enabled on GCP/AWS; unsupported on Azure HNS |
+| `airflow_logs` | Remote task logs only | Control writes and reads | Disabled |
+| `scratch` | Disposable job and notebook intermediates | Job and notebook read/write | Disabled |
+| `backup` | Recovery exports and restore artifacts | No runtime access | Enabled on GCP/AWS; unsupported on Azure HNS |
 
 Every location is private and encrypted by its provider. GCP uses four buckets,
 AWS uses four S3 buckets, and Azure uses four private containers in one ADLS
-Gen2 account. Azure versioning is an account-level setting and therefore covers
-all four containers. Azure control-plane access uses the Container Instances
+Gen2 hierarchical-namespace account. Azure HNS does not support blob versioning;
+30-day blob/directory and container soft-delete policies provide delete recovery
+but do not protect overwrites. Azure control-plane access uses the Container Instances
 Contributor role instead of general resource-group Contributor, preventing the
 control identity from using broad storage-management permissions to bypass the
 container data-plane assignments. Provider-specific IAM remains resource-scoped:
@@ -37,16 +38,55 @@ Cloud SQL accepts encrypted connections only.
 
 The GCP feed grant is create-only. AWS `PutObject` and Azure Blob Data
 Contributor do not provide the same no-overwrite guarantee by themselves;
-vendor key design and the P2.2 retention/immutability decision must account for
-that provider difference.
+vendor key design must therefore use immutable object names and completion
+markers rather than relying on provider IAM to prevent overwrite.
+
+## Approved lifecycle policy
+
+Lifecycle policy version 1 applies the same intent to every environment and
+provider:
+
+| Boundary | Approved behavior | Safety property |
+|---|---|---|
+| Current raw data | Transition `raw/` objects after 90 days (GCP Coldline, AWS Glacier Instant Retrieval, Azure Cool) | Never delete current raw objects; raw remains the replay source of truth |
+| Noncurrent data versions | On GCP/AWS, retain the newest three and keep versions for at least 30 days before pruning | A bad overwrite has both a count-based and time-based recovery window |
+| Airflow logs | Apply lifecycle deletion after 90 days | Operational logs do not become an unbounded archive |
+| Scratch | Apply lifecycle deletion after 14 days | Temporary output cannot silently become durable storage |
+| Backup | No automatic deletion in this phase | Backup retention changes only with the restore policy in P2.5 |
+
+GCP and AWS enforce both the newest-three count and 30-day minimum age for
+noncurrent data versions. Azure Blob versioning is unsupported on the selected
+hierarchical-namespace account. Azure instead enables 30-day blob/directory and
+container soft delete, reports `unsupported-on-hierarchical-namespace` in
+`storage_lifecycle_policy`, and does not claim overwrite recovery. Azure does not
+qualify for production parity until the design adds a supported immutable-copy or
+snapshot mechanism and exercises it. The log and scratch lifecycle actions occur
+after 90 and 14 days, after which Azure's soft-delete recovery window still applies.
+
+The Terraform output `storage_lifecycle_policy` is the reviewable contract for
+the effective transition, expiry, version-recovery, and provider-limitation
+settings. Plans that reduce a recovery window or introduce deletion for current
+data or backups require an explicit exception rather than an unreviewed variable
+override.
+
+### Exceptions
+
+An exception is allowed only for a legal hold, a vendor contract, or a documented
+reproducibility requirement. The approving pull request must record the affected
+environment and prefix, owner, reason, approval or ticket ID, requested policy,
+review date, and removal or renewal condition. Prefer a narrower prefix-specific
+rule over changing the environment-wide baseline. Legal holds take precedence
+over expiry; objects under hold must be isolated from the standard destructive
+rule and included in recovery testing. Cost preference alone is not an exception.
 
 Terraform exposes the same provider-neutral outputs from every module:
 
 - `storage_uri` remains the canonical data URI for compatibility;
 - `airflow_logs_uri`, `scratch_uri`, and `backup_uri` identify the other
   locations;
-- `storage_locations` is the four-URI deployment map; and
-- `storage_contract` records versioning and effective workload access.
+- `storage_locations` is the four-URI deployment map;
+- `storage_contract` records versioning and effective workload access; and
+- `storage_lifecycle_policy` records effective retention and provider limitations.
 
 Runtime configuration maps `storage_uri` to `RP_STORAGE_URI`, `scratch_uri` to
 `RP_SCRATCH_URI`, and `airflow_logs_uri` to `AIRFLOW_REMOTE_LOGS`. Backup
@@ -109,6 +149,12 @@ After apply, capture `terraform output -json storage_contract` and verify:
 - control can write logs but cannot read data or scratch; and
 - every runtime identity is denied access to the backup location.
 
+Also capture `terraform output -json storage_lifecycle_policy`, upload a test
+object and a replacement version, and verify the provider reports the expected
+transition/expiry rules before removing any superseded policy. Lifecycle actions
+are asynchronous; configuration acceptance is not evidence that an object was
+actually transitioned or deleted.
+
 Do not place credentials, Terraform state, or notebook home directories in any
 of these object-storage locations. State retains its bootstrap bucket, and
 notebook persistence follows the separate volume/EFS procedure.
@@ -118,3 +164,5 @@ notebook persistence follows the separate volume/EFS procedure.
 - [Cloud Storage IAM roles](https://cloud.google.com/storage/docs/access-control/iam-roles)
 - [Blocking public access to Amazon S3 storage](https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html)
 - [Azure built-in roles for containers](https://learn.microsoft.com/azure/role-based-access-control/built-in-roles/containers)
+- [Azure Blob versioning support](https://learn.microsoft.com/azure/storage/blobs/versioning-overview)
+- [Azure soft delete with hierarchical namespaces](https://learn.microsoft.com/azure/storage/blobs/soft-delete-blob-overview)

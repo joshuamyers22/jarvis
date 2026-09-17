@@ -18,9 +18,14 @@ resource "azurerm_storage_account" "data" {
   }
 
   blob_properties {
-    versioning_enabled = true
+    # Blob versioning is not supported on hierarchical-namespace ADLS Gen2
+    # accounts. Soft delete protects deletions, but not overwrites.
+    versioning_enabled = false
     delete_retention_policy {
-      days = 30
+      days = var.soft_delete_retention_days
+    }
+    container_delete_retention_policy {
+      days = var.soft_delete_retention_days
     }
   }
 }
@@ -75,9 +80,6 @@ resource "azurerm_storage_management_policy" "lifecycle" {
       base_blob {
         tier_to_cool_after_days_since_modification_greater_than = var.raw_cool_after_days
       }
-      version {
-        delete_after_days_since_creation = 30
-      }
     }
   }
 
@@ -93,5 +95,52 @@ resource "azurerm_storage_management_policy" "lifecycle" {
         delete_after_days_since_modification_greater_than = var.log_delete_after_days
       }
     }
+  }
+
+  rule {
+    name    = "expire-scratch"
+    enabled = true
+    filters {
+      prefix_match = ["${var.scratch_container_name}/"]
+      blob_types   = ["blockBlob"]
+    }
+    actions {
+      base_blob {
+        delete_after_days_since_modification_greater_than = var.scratch_delete_after_days
+      }
+    }
+  }
+}
+
+locals {
+  storage_lifecycle_policy = {
+    policy_version = "1"
+    raw = {
+      prefix                = "raw/"
+      transition_after_days = var.raw_cool_after_days
+      transition_tier       = "COOL"
+      delete_current        = false
+    }
+    noncurrent_data_versions = {
+      retained_count   = null
+      minimum_age_days = null
+      enforcement      = "unsupported-on-hierarchical-namespace"
+    }
+    delete_recovery = {
+      minimum_age_days = var.soft_delete_retention_days
+      enforcement      = "blob-and-container-soft-delete"
+    }
+    airflow_logs = {
+      delete_after_days = var.log_delete_after_days
+    }
+    scratch = {
+      delete_after_days = var.scratch_delete_after_days
+    }
+    backup = {
+      delete_after_days = null
+    }
+    provider_limitations = [
+      "Azure Blob versioning is unsupported on hierarchical-namespace ADLS Gen2 accounts; soft delete protects deletes but not overwrites."
+    ]
   }
 }

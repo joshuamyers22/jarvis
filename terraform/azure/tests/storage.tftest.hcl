@@ -156,6 +156,31 @@ run "storage_boundaries_are_private_and_distinct" {
     )
     error_message = "The Azure storage contract must expose the intended workload boundary and no backup runtime access."
   }
+
+  assert {
+    condition = (
+      output.storage_lifecycle_policy.policy_version == "1" &&
+      output.storage_lifecycle_policy.raw.transition_after_days == 90 &&
+      !output.storage_lifecycle_policy.raw.delete_current &&
+      output.storage_lifecycle_policy.noncurrent_data_versions.retained_count == null &&
+      output.storage_lifecycle_policy.noncurrent_data_versions.minimum_age_days == null &&
+      output.storage_lifecycle_policy.noncurrent_data_versions.enforcement == "unsupported-on-hierarchical-namespace" &&
+      output.storage_lifecycle_policy.delete_recovery.minimum_age_days == 30 &&
+      output.storage_lifecycle_policy.airflow_logs.delete_after_days == 90 &&
+      output.storage_lifecycle_policy.scratch.delete_after_days == 14 &&
+      output.storage_lifecycle_policy.backup.delete_after_days == null &&
+      length(output.storage_lifecycle_policy.provider_limitations) == 1 &&
+      !azurerm_storage_account.data.blob_properties[0].versioning_enabled &&
+      azurerm_storage_account.data.blob_properties[0].delete_retention_policy[0].days == 30 &&
+      azurerm_storage_account.data.blob_properties[0].container_delete_retention_policy[0].days == 30 &&
+      one([
+        for rule in azurerm_storage_management_policy.lifecycle.rule :
+        one(rule.actions).base_blob[0].delete_after_days_since_modification_greater_than
+        if rule.name == "expire-scratch"
+      ]) == 14
+    )
+    error_message = "Azure must enforce supported lifecycle/recovery windows and disclose its HNS versioning limitation."
+  }
 }
 
 run "duplicate_storage_boundaries_are_rejected" {

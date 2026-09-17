@@ -162,11 +162,45 @@ variable "notebook_efs_transition_to_ia" {
 }
 
 variable "raw_glacier_after_days" {
-  type    = number
-  default = 90
+  type        = number
+  default     = 90
+  description = "Days before current raw-data objects transition to Glacier Instant Retrieval."
+
+  validation {
+    condition     = var.raw_glacier_after_days >= 1 && floor(var.raw_glacier_after_days) == var.raw_glacier_after_days
+    error_message = "raw_glacier_after_days must be a positive whole number."
+  }
 }
 
 variable "log_delete_after_days" {
-  type    = number
-  default = 180
+  type        = number
+  default     = 90
+  description = "Days before Airflow task-log objects are permanently deleted."
+
+  validation {
+    condition     = var.log_delete_after_days >= 1 && floor(var.log_delete_after_days) == var.log_delete_after_days
+    error_message = "log_delete_after_days must be a positive whole number."
+  }
+}
+
+variable "scratch_delete_after_days" {
+  type        = number
+  default     = 14
+  description = "Days before temporary scratch objects are permanently deleted."
+
+  validation {
+    condition     = var.scratch_delete_after_days >= 1 && floor(var.scratch_delete_after_days) == var.scratch_delete_after_days
+    error_message = "scratch_delete_after_days must be a positive whole number."
+  }
+}
+
+variable "noncurrent_version_delete_after_days" {
+  type        = number
+  default     = 30
+  description = "Minimum age before a noncurrent data version beyond the newest three may be deleted."
+
+  validation {
+    condition     = var.noncurrent_version_delete_after_days >= 1 && floor(var.noncurrent_version_delete_after_days) == var.noncurrent_version_delete_after_days
+    error_message = "noncurrent_version_delete_after_days must be a positive whole number."
+  }
 }

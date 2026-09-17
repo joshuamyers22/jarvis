@@ -27,6 +27,11 @@ output "storage_locations" {
   }
 }
 
+output "storage_lifecycle_policy" {
+  description = "Approved storage lifecycle policy and provider enforcement semantics."
+  value       = local.storage_lifecycle_policy
+}
+
 output "storage_contract" {
   value = {
     data = {

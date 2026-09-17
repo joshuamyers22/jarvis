@@ -180,6 +180,32 @@ run "least_privilege_identity_contract" {
 
   assert {
     condition = (
+      output.storage_lifecycle_policy.policy_version == "1" &&
+      output.storage_lifecycle_policy.raw.transition_after_days == 90 &&
+      !output.storage_lifecycle_policy.raw.delete_current &&
+      output.storage_lifecycle_policy.noncurrent_data_versions.retained_count == 3 &&
+      output.storage_lifecycle_policy.noncurrent_data_versions.minimum_age_days == 30 &&
+      output.storage_lifecycle_policy.airflow_logs.delete_after_days == 90 &&
+      output.storage_lifecycle_policy.scratch.delete_after_days == 14 &&
+      output.storage_lifecycle_policy.backup.delete_after_days == null &&
+      one([
+        for rule in google_storage_bucket.scratch.lifecycle_rule : one(rule.condition).age
+        if one(rule.action).type == "Delete"
+      ]) == 14 &&
+      one([
+        for rule in google_storage_bucket.data.lifecycle_rule : one(rule.condition).num_newer_versions
+        if one(rule.action).type == "Delete"
+      ]) == 3 &&
+      one([
+        for rule in google_storage_bucket.data.lifecycle_rule : one(rule.condition).with_state
+        if one(rule.action).type == "Delete"
+      ]) == "ARCHIVED"
+    )
+    error_message = "GCP must enforce the approved raw, version, log, scratch, and backup lifecycle policy."
+  }
+
+  assert {
+    condition = (
       google_artifact_registry_repository_iam_member.ci_writer.role == "roles/artifactregistry.writer" &&
       alltrue([
         for binding in google_artifact_registry_repository_iam_member.runtime_readers :

@@ -109,6 +109,26 @@ run "storage_boundaries_are_private_and_distinct" {
 
   assert {
     condition = (
+      output.storage_lifecycle_policy.policy_version == "1" &&
+      output.storage_lifecycle_policy.raw.transition_after_days == 90 &&
+      !output.storage_lifecycle_policy.raw.delete_current &&
+      output.storage_lifecycle_policy.noncurrent_data_versions.retained_count == 3 &&
+      output.storage_lifecycle_policy.noncurrent_data_versions.minimum_age_days == 30 &&
+      output.storage_lifecycle_policy.airflow_logs.delete_after_days == 90 &&
+      output.storage_lifecycle_policy.scratch.delete_after_days == 14 &&
+      output.storage_lifecycle_policy.backup.delete_after_days == null &&
+      one(aws_s3_bucket_lifecycle_configuration.scratch.rule).expiration[0].days == 14 &&
+      one(flatten([
+        for rule in aws_s3_bucket_lifecycle_configuration.data.rule : [
+          for expiration in rule.noncurrent_version_expiration : expiration.newer_noncurrent_versions
+        ]
+      ])) == 3
+    )
+    error_message = "AWS must enforce the approved raw, version, log, scratch, and backup lifecycle policy."
+  }
+
+  assert {
+    condition = (
       aws_iam_role_policy.control_logs.role == aws_iam_role.roles["control"].id &&
       aws_iam_role_policy.job_data.role == aws_iam_role.roles["job"].id &&
       aws_iam_role_policy.feed_data.role == aws_iam_role.roles["feed"].id &&

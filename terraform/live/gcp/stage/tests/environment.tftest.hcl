@@ -59,6 +59,18 @@ run "staging_boundary" {
   }
 
   assert {
+    condition = (
+      output.storage_lifecycle_policy.raw.transition_after_days == 90 &&
+      output.storage_lifecycle_policy.airflow_logs.delete_after_days == 90 &&
+      output.storage_lifecycle_policy.scratch.delete_after_days == 14 &&
+      output.storage_lifecycle_policy.noncurrent_data_versions.retained_count == 3 &&
+      output.storage_lifecycle_policy.noncurrent_data_versions.minimum_age_days == 30 &&
+      output.storage_lifecycle_policy.backup.delete_after_days == null
+    )
+    error_message = "Staging must inherit the approved storage lifecycle policy."
+  }
+
+  assert {
     condition     = output.configuration.db_availability_type == "ZONAL" && output.configuration.db_deletion_protection
     error_message = "Staging must keep deletion protection while using a zonal database."
   }
