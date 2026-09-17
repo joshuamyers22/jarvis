@@ -311,6 +311,10 @@ Exit gate:
 
 Goal: make environment creation repeatable and safe.
 
+Implementation status (2026-09-16): P1.1 is implemented and locally validated.
+The protected state bucket still requires an authorized apply in the selected
+GCP administrative project before P1.2 environment roots can adopt it.
+
 - **P1.1 Add a bootstrap stack.** Create the remote-state bucket with versioning,
   retention, public-access prevention, and narrowly scoped administration. Bootstrap
   is deliberately separate from the state it creates.

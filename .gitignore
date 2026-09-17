@@ -1,6 +1,7 @@
 .env
 .env.*
 !.env.example
+!terraform/bootstrap/gcp/.env.bootstrap.example
 *.pem
 *.key
 *.p12
@@ -24,6 +25,8 @@ notebooks/
 *.tfstate.backup
 *.tfvars
 *.tfvars.json
+backend.hcl
+*.tfplan
 crash.log
 crash.*.log
 .ipynb_checkpoints/

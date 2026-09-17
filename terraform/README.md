@@ -29,6 +29,11 @@ terraform init -backend-config="bucket=my-tfstate"
 terraform apply -var-file=prod.tfvars
 ```
 
+For GCP, create the protected remote-state bucket first with the standalone
+[`bootstrap/gcp`](bootstrap/gcp/README.md) root. Its initial local state is
+immediately migrated to the reserved `bootstrap/gcp` prefix; application
+environment roots must use separate prefixes.
+
 Each module produces the same outputs, which is where the abstraction does
 hold: `storage_uri`, `registry`, `batch_job_name`, `db_host`, and the identities
 each role runs as. Feed those into `.env` and the rest of the platform does not

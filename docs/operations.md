@@ -6,6 +6,14 @@ This describes the operational contract, not a substitute for a provider review.
 
 Choose one module under `terraform/`. The modules expect existing private
 networking and should use encrypted, versioned remote state with locking.
+For GCP, first create the backend using the
+[state bootstrap procedure](../terraform/bootstrap/gcp/README.md); do not create
+an ad hoc bucket or reuse another environment's state prefix.
+
+Local bootstrap and runtime settings belong in their documented ignored env
+files. Store only credential references or impersonation targets there; use
+short-lived Application Default Credentials or workload identity rather than
+embedding cloud keys.
 
 ```bash
 terraform -chdir=terraform/gcp init -backend-config=backend.hcl

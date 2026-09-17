@@ -35,7 +35,8 @@ terraform -chdir=terraform/gcp init -backend=false -input=false
 terraform -chdir=terraform/gcp validate
 ```
 
-Replace `gcp` as appropriate. CI validates all three providers.
+Replace `gcp` as appropriate. CI validates all three providers and the GCP
+remote-state bootstrap root.
 
 ## Project boundaries
 
