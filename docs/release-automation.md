@@ -9,7 +9,7 @@ image.
 
 | Workflow | Trigger | Authority | Result |
 |---|---|---|---|
-| `ci.yml` | Pull request and push to `main` | Read-only repository token; no environment, secret, or OIDC permission | Lint, types, ownership, unit/architecture/DAG tests, Terraform tests, Packer validation, security scans, image smoke tests, and validation SBOMs |
+| `ci.yml` | Pull request and push to `main` | Read-only repository token; no environment, secret, or OIDC permission | Calls the centralized validation workflow at an immutable revision |
 | `release.yml` | Successful completion of `ci` for a push to this repository's `main` branch | Read-only repository token plus OIDC inside the protected `production` environment | Immutable Git-SHA image publication for each configured provider |
 | `recovery-drill.yml` | Schedule or explicit dispatch | Staging OIDC inside the protected `staging` environment | Isolated quarterly recovery evidence; never image publication |
 
@@ -19,6 +19,40 @@ origin repository before its job can enter `production`. It checks out
 exact 40-character commit locally, and tags the image with the same SHA.
 Validation and release use separate BuildKit cache scopes so an untrusted pull
 request cannot populate a cache consumed by a privileged build.
+
+## Centralized validation
+
+Stable validation logic lives in the public, credential-free
+[`joshuamyers22/jarvis-automation`](https://github.com/joshuamyers22/jarvis-automation)
+repository. GitHub permits a public caller such as Jarvis to use reusable
+workflows only from public repositories, so confidentiality cannot be the access
+boundary. Instead, the called workflow hard-fails unless `github.repository` is
+an explicitly allowlisted caller.
+
+The caller reference is recorded in `config/automation.toml` and pinned to a full
+commit SHA in `ci.yml`. The called workflow accepts no inputs or secrets, repeats
+`contents: read` on every job, checks out the exact caller SHA without persisted
+credentials, and contains no environment, cloud authentication, registry login,
+or publishing capability. GitHub also prevents a called workflow from elevating
+beyond the caller's token permissions.
+
+To update centralized validation:
+
+1. Change `jarvis-automation` and pass its `workflow-policy` job.
+2. Merge the reviewed change and copy its full commit SHA.
+3. Update both `ci.yml` and `config/automation.toml` in the same Jarvis pull
+   request.
+4. Run `uv run pytest -q tests/test_workflow_policy.py` and review the upstream
+   workflow diff before merging.
+
+Never pin a branch or moving tag. Production OIDC, environments, publishing,
+deployment, and rollback remain local to their owning repository.
+
+The automation repository itself uses read-only default workflow permissions and
+an active `main` ruleset with no bypass actors. Changes require a pull request,
+the `workflow-policy` check, an up-to-date branch, and resolved review threads;
+force-pushes and branch deletion are blocked. Independent code-owner approval
+must be enabled when a second trusted maintainer or organization team exists.
 
 The repository policy tests reject a pull-request workflow containing any of
 these capabilities:
@@ -40,13 +74,14 @@ uv run pytest -q tests/test_workflow_policy.py
 
 Apply an organization ruleset or branch protection rule to `main` that requires
 a pull request, code-owner review for `.github/`, fresh approval after changes,
-resolved conversations, and these successful CI jobs:
+resolved conversations, and these successful reusable-workflow jobs:
 
-- `lint-and-test`;
-- `terraform`;
-- `host-image-template`;
-- `security`; and
-- every `image-test` matrix job.
+- `validation / authorize caller`;
+- `validation / lint-and-test`;
+- `validation / terraform`;
+- `validation / host-image-template`;
+- `validation / security`; and
+- every `validation / image-test` matrix job.
 
 Do not make the release workflow a merge check: it intentionally runs only
 after the validated commit reaches `main`.

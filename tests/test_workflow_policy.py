@@ -1,10 +1,12 @@
 """Repository policy tests for GitHub Actions privilege boundaries."""
 
 import re
+import tomllib
 from pathlib import Path
 
 WORKFLOWS = Path(".github/workflows")
-ACTION_REFERENCE = re.compile(r"^[ \t]*-[ \t]+uses:[ \t]+([^\s#]+)", re.MULTILINE)
+AUTOMATION_CONTRACT = Path("config/automation.toml")
+ACTION_REFERENCE = re.compile(r"^[ \t]*(?:-[ \t]+)?uses:[ \t]+([^\s#]+)", re.MULTILINE)
 PINNED_ACTION = re.compile(r"^[^@]+@[0-9a-f]{40}$")
 PULL_REQUEST_TRIGGER = re.compile(r"^[ \t]*pull_request(?:_target)?:", re.MULTILINE)
 
@@ -72,8 +74,23 @@ def test_release_requires_successful_main_ci_from_this_repository() -> None:
     assert "${{ secrets." not in source
 
 
-def test_validation_and_release_caches_are_separate() -> None:
-    assert "scope=validation-${{ matrix.cloud }}" in workflow("ci.yml")
+def test_centralized_validation_is_immutable_and_least_privilege() -> None:
+    contract = tomllib.loads(AUTOMATION_CONTRACT.read_text())["validation"]
+    revision = contract["revision"]
+    reference = f"{contract['repository']}/{contract['workflow']}@{revision}"
+    source = workflow("ci.yml")
+
+    assert re.fullmatch(r"[0-9a-f]{40}", revision)
+    assert reference in source
+    assert contract["allowed_callers"] == ["joshuamyers22/jarvis"]
+    assert contract["token_permissions"] == ["contents:read"]
+    assert contract["cloud_permissions"] is False
+    assert contract["accepts_secrets"] is False
+    assert "permissions:\n  contents: read" in source
+    assert "@main" not in source
+
+
+def test_release_cache_is_not_a_pull_request_cache() -> None:
     assert "scope=release-${{ matrix.cloud }}" in workflow("release.yml")
 
 

@@ -1,6 +1,6 @@
 # Jarvis production functionality plan
 
-Status: active — Phase 4 in progress; P4.1 complete locally and P4.1a next
+Status: active — P4.1 and P4.1b complete locally; P4.1a remains next
 Prepared: 2026-09-16
 Reference reviewed: [`sixtycapital/infrastructure`](https://github.com/sixtycapital/infrastructure/tree/b6da17b68b9a2be41dbfa616506b70e30ce62c6e), tag `3.4.1`
 
@@ -80,7 +80,7 @@ GitHub organization
 ├── jarvis                  public or private platform/runtime source
 ├── jarvis-workloads        private jobs, DAGs, schemas, and final-image build
 ├── jarvis-live             private environment composition and promoted digests
-├── jarvis-automation       private reusable workflows and organization actions
+├── jarvis-automation       public credential-free reusable validation workflows
 ├── research-notebooks      private human research source; never a prod dependency
 └── ggstyle                 public versioned Python package
 
@@ -100,7 +100,7 @@ Responsibilities and access boundaries:
 | `jarvis` | Platform runtime, provider adapters, CLI, reusable Terraform modules | Produces versioned Python artifacts and a signed base-image digest | Platform maintainers write; broader engineering read |
 | `jarvis-workloads` | Proprietary jobs, DAGs, vendor adapters, schemas, golden fixtures | Pins a Jarvis release/base digest and produces the final deployable image | Data engineering write; platform and release teams read/review |
 | `jarvis-live` | `dev/stage/prod` Terraform roots, non-secret configuration, approved image digests | Sole Git source of desired deployed versions; never stores Terraform state or secrets | Release managers write; platform read; tightly limited admin |
-| `jarvis-automation` | Reusable workflows and organization-owned actions | Supplies pinned CI/release building blocks to approved repositories | Platform/security write; consumers read indirectly |
+| `jarvis-automation` | Credential-free reusable validation workflows and organization-owned actions | Supplies full-SHA-pinned CI building blocks to allowlisted repositories; never owns release authority | Platform/security write; public read required for public callers |
 | `research-notebooks` | Private notebooks and research utilities | May consume released artifacts; production must never clone or import it | Researchers write; no production bot access by default |
 | `ggstyle` | Standalone visualization package | Jarvis consumes an immutable released version, never `../ggstyle` | Package maintainers write; public read if it remains public |
 
@@ -115,7 +115,7 @@ working composite-image build. Until then, Jarvis remains the deployable source 
 | Released Python wheel | **Preferred for Python libraries** | Publish a version, lock hashes, and promote the immutable artifact. GitHub Packages does not currently provide a PyPI registry, so use PyPI trusted publishing for public packages or a cloud/private Python repository for private packages. |
 | OCI image | **Preferred for runtime composition** | Reference the base and final images by digest; tags are discovery aliases only. Runtime hosts pull from the cloud registry using workload identity. |
 | Terraform module Git source | **Allowed** | Pin a full commit SHA or immutable release tag. Private module fetches use a read-only GitHub App token in CI, never a developer PAT on a production host. |
-| Reusable workflow/action | **Allowed and encouraged** | Call from `jarvis-automation`, pin actions to a full commit SHA, grant access only to intended repositories, and review workflow changes as production code. GitHub supports private workflow sharing but warns that users of caller repositories can indirectly see data exposed through workflow logs. |
+| Reusable workflow/action | **Allowed and encouraged** | Call from `jarvis-automation`, pin actions to a full commit SHA, enforce a code-level caller allowlist, and review workflow changes as production code. GitHub requires workflows called by public repositories to be public, so reusable automation must remain credential-free and release authority stays in the caller. |
 | Cross-repository checkout in CI | **Exception, not composition default** | Use a selected-repository GitHub App installation token with `contents:read`; record the exact source SHA in build provenance. |
 | Promotion pull request | **Preferred cross-repository write** | A release App opens a branch/PR changing an image digest in `jarvis-live`; it cannot merge, approve, or bypass rules. |
 | Git submodule/subtree | **Avoid for runtime dependencies** | Recursive authentication, detached revisions, and multi-repository atomicity make operations fragile. Use only for consciously vendored source with a named owner and update procedure. |
@@ -204,16 +204,14 @@ and [OIDC for GCP](https://docs.github.com/en/actions/how-tos/secure-your-work/s
 
 ### Shared workflow controls
 
-`jarvis-automation` should expose reusable workflows only to the intended organization
-repositories. Consumers must call a release tag backed by a protected immutable tag
-and, where GitHub syntax permits, pin the full commit SHA. A called workflow cannot be
-used as a hidden privilege escalator: callers pass only declared inputs/secrets, token
-permissions are explicit, and production OIDC remains in the deployment repository's
-protected environment. GitHub requires private workflow repositories to explicitly
-allow caller access and supplies a scoped token for download; review the exposure to
-outside collaborators before enabling organization-wide sharing. See
-[reusable workflow access](https://docs.github.com/en/actions/reference/workflows-and-actions/reusing-workflow-configurations)
-and [private workflow sharing](https://docs.github.com/en/actions/how-tos/reuse-automations/share-with-your-organization).
+`jarvis-automation` exposes public, credential-free reusable workflows because the
+public Jarvis caller cannot import a private workflow. Each workflow hard-fails for
+callers outside its reviewed repository allowlist. Consumers pin the full commit SHA;
+moving tags and branches are prohibited. A called workflow cannot be used as a hidden
+privilege escalator: its inputs and secrets are absent or explicitly declared, token
+permissions are read-only, and production OIDC remains in the deployment repository's
+protected environment. See
+[reusable workflow access](https://docs.github.com/en/actions/reference/workflows-and-actions/reusing-workflow-configurations).
 
 ## 4. Reference capability mapping
 
@@ -536,9 +534,10 @@ Exit gate:
 
 Goal: replace the reference's mutable daily rollout with auditable releases.
 
-Implementation status (2026-09-17): P4.1 is implemented and locally validated;
-GitHub ruleset/environment enforcement and the first approved release remain live
-evidence. P4.1a is next.
+Implementation status (2026-09-17): P4.1 and P4.1b are implemented and locally
+validated. The automation repository's no-bypass ruleset and policy workflow are
+live; Jarvis environment enforcement, the first approved release, and a live
+unauthorized-caller exercise remain evidence. P4.1a is next.
 
 - **P4.1 Separate validation from release — complete locally.** Pull requests and
   main-branch CI run unit, architecture, DAG, Terraform, Packer, image smoke,
@@ -555,9 +554,17 @@ evidence. P4.1a is next.
   release GitHub Apps, install them only on required repositories, store and rotate
   their private keys as protected secrets, and test that each App is denied outside
   its intended repositories and permissions.
-- **P4.1b Centralize reusable automation.** Move stable workflow logic into
-  `jarvis-automation`, explicitly allow only intended callers, pin calls to immutable
-  revisions, and confirm no caller can obtain broader token or cloud permissions.
+- **P4.1b Centralize reusable automation — complete locally.** Stable validation
+  jobs now live in the public, credential-free `joshuamyers22/jarvis-automation`
+  repository. Its reusable workflow accepts only the hardcoded Jarvis caller,
+  declares no inputs or secrets, repeats read-only token permissions on every job,
+  and has no environment, OIDC, registry-login, publishing, or deployment authority.
+  Jarvis calls the successfully policy-tested upstream workflow at an immutable
+  full commit SHA recorded in both CI and `config/automation.toml`; local policy
+  tests reject pin drift and privilege expansion. Release authority remains in
+  Jarvis. The upstream repository enforces read-only default workflow permissions
+  and a no-bypass `main` ruleset requiring pull requests, its passing policy check,
+  and resolved review threads; a live denied-caller run remains evidence.
 - **P4.2 Build once.** Main-branch CI builds the GCP image, records its digest, creates
   provenance and an SBOM, signs it with keyless identity, and stores test evidence.
 - **P4.3 Add staging integration tests.** Dispatch a synthetic Cloud Run Job, write a

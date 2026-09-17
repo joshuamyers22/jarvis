@@ -37,6 +37,9 @@ terraform -chdir=terraform/gcp validate
 Replace `gcp` as appropriate. CI validates all provider modules, the GCP
 private-network module, the remote-state bootstrap root, and all three GCP live
 environment roots. Terraform native tests enforce their security boundaries.
+Stable validation jobs are supplied by `jarvis-automation` at the exact revision
+recorded in `config/automation.toml`; review the upstream diff before updating
+that pin.
 
 ## Project boundaries
 
