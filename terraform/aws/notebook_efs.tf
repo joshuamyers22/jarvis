@@ -110,7 +110,7 @@ resource "aws_security_group" "notebook_efs" {
   vpc_id      = var.vpc_id
 
   ingress {
-    description     = "NFS from this environment's notebook host"
+    description     = "NFS from this environment notebook host"
     from_port       = 2049
     to_port         = 2049
     protocol        = "tcp"
