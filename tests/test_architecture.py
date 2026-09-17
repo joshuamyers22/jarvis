@@ -107,6 +107,24 @@ def test_database_migration_has_one_explicit_owner() -> None:
     assert ".env.migration-pending" in Path("ctl/commands/deploy.py").read_text()
 
 
+def test_deployments_are_digest_pinned_and_transactional() -> None:
+    deploy = Path("ctl/commands/deploy.py").read_text()
+    supervisor = Path("packer/gcp/files/jarvis-compose").read_text()
+    compose = "\n".join(
+        Path(f"compose/{role}.yml").read_text() for role in ("control", "feed", "notebook")
+    )
+
+    assert compose.count("${IMAGE_DIGEST_SUFFIX:-}") == 3
+    assert "candidate-preflight" in supervisor
+    assert "RP_IMAGE_CLOUD" in supervisor
+    assert "image-reference" in supervisor
+    assert "compose.candidate" in supervisor
+    assert ".env.previous-tag" in deploy
+    assert "runtime.previous.env" in deploy
+    assert "_run_synthetic_probe" in deploy
+    assert "_collect_failure_logs" in deploy
+
+
 def test_host_image_credentials_remain_in_ignored_env_file() -> None:
     ignore = Path(".gitignore").read_text()
     example = Path("packer/gcp/.env.image.example").read_text()

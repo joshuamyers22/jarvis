@@ -17,6 +17,7 @@ from ctl.commands._util import (
     sh,
     ssh_target,
 )
+from ctl.release import resolve_digest
 
 
 def _remote_compose(remote_dir: str) -> tuple[str, str]:
@@ -149,11 +150,13 @@ def migrate(
     if cloud not in {"gcp", "aws", "azure"}:
         typer.secho(f"database migration is unsupported for cloud {cloud!r}", fg=typer.colors.RED)
         raise typer.Exit(1)
+    env = {**env, "RP_CLOUD": cloud}
 
     resolved = resolve_tag(tag, allow_dirty)
+    release = resolve_digest(env, resolved)
     host = ssh_target(env, "control")
     remote_dir = "/opt/research/control"
-    eprint(f"cloud: {cloud}  migration tag: {resolved}")
+    eprint(f"cloud: {cloud}  migration image: {release.reference(env['IMAGE'])}")
     if backup_reference:
         eprint(f"backup evidence: {backup_reference}")
 
@@ -182,12 +185,12 @@ def migrate(
             ]
         )
         sh(["rsync", "-az", str(runtime_env), f"{host}:{remote_dir}/runtime.env"])
-        quoted_tag = shlex.quote(resolved)
+        quoted_release = shlex.quote(release.env_text())
         sh(
             [
                 "ssh",
                 host,
-                f"printf 'IMAGE_TAG=%s\\n' {quoted_tag} > {remote_dir}/.env.migration-tag",
+                f"printf %s {quoted_release} > {remote_dir}/.env.migration-tag",
             ]
         )
         sh(
@@ -200,7 +203,7 @@ def migrate(
 
     _run_migration(host, cloud, remote_dir)
     eprint(
-        f"database is current for {resolved}; control remains stopped until "
+        f"database is current for {release.reference(env['IMAGE'])}; control remains stopped until "
         "that exact tag is deployed",
         typer.colors.GREEN,
     )

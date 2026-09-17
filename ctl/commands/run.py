@@ -5,6 +5,7 @@ from __future__ import annotations
 import typer
 
 from ctl.commands._util import ENV_FILE, detect_cloud, eprint, load_env, resolve_tag, sh
+from ctl.release import resolve_digest
 
 
 def run(
@@ -60,6 +61,7 @@ def run(
             )
         elif cloud == "azure":
             resolved_tag = resolve_tag(tag, allow_dirty=True)
+            release = resolve_digest(env, resolved_tag)
             sh(
                 [
                     "az",
@@ -70,7 +72,7 @@ def run(
                     "--name",
                     f"rp-{module}-{date.replace('-', '')}",
                     "--image",
-                    f"{env['IMAGE']}:{resolved_tag}",
+                    release.reference(env["IMAGE"]),
                     "--restart-policy",
                     "Never",
                     "--command-line",

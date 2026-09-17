@@ -24,8 +24,10 @@ timeouts. No cloud key or registry token belongs in a deployment env file.
 
 ## Deploy and inspect
 
-The normal command copies the non-secret runtime env, tag, and Compose files,
-then enables/restarts the unit and waits up to five minutes for JSON health:
+The normal command copies the non-secret runtime env, exact tag/digest, and
+Compose files, preflights the candidate image provider, saves the previous
+release, then enables/restarts the unit and waits up to five minutes for JSON
+health:
 
 ```bash
 uv run ctl deploy control --tag GIT_SHA
@@ -37,6 +39,7 @@ Inspect a role over IAP SSH:
 sudo systemctl status jarvis-compose@control.service --no-pager
 sudo journalctl -u jarvis-compose@control.service --since=-30m --no-pager
 sudo /usr/local/sbin/jarvis-compose health control
+sudo /usr/local/sbin/jarvis-compose image-reference control
 ```
 
 The health command exits zero only when every expected Compose service exists,

@@ -6,7 +6,7 @@
 # =============================================================================
 services:
   jupyter:
-    image: ${IMAGE}:${IMAGE_TAG}
+    image: ${IMAGE}:${IMAGE_TAG}${IMAGE_DIGEST_SUFFIX:-}
     command: ["jupyter"]
     restart: unless-stopped
     ports:

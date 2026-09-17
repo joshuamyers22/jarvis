@@ -80,7 +80,10 @@ Do not commit backend credentials, variable files, plans, or state.
 ```bash
 uv run ctl build
 uv run ctl push
+uv run ctl plan all
 uv run ctl deploy all
+uv run ctl status all
+uv run ctl doctor all
 ```
 
 The CLI rejects dirty trees so image contents correspond to the tag. CI builds
@@ -128,6 +131,11 @@ uv run ctl run pull_ohlcv --date 2026-08-11 --remote
 
 Validate changes outside production, deploy one immutable tag, verify storage
 and logs, then update remaining roles. Keep the previous tag for rollback.
+The normal release path resolves that tag to an immutable registry digest,
+health-gates each role, verifies remote logs, runs a synthetic batch/storage
+probe, and automatically restores already-activated roles if a later gate fails.
+Use `ctl rollback all --yes` for the reviewed manual recovery workflow and follow
+the [transactional deployment runbook](transactional-deployments.md).
 Schema changes use the explicit, single-owner
 [database migration workflow](database-migrations.md): migrate with the candidate
 image, then deploy that exact tag. Never restore service with an older image

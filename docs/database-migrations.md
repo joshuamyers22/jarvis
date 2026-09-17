@@ -38,9 +38,10 @@ must match it byte-for-byte and removes it only after activation succeeds.
 
 ## Release procedure
 
-Build and publish one immutable application tag before starting. Confirm a
-successful backup and usable PITR window, and record its provider identifier or
-change-ticket evidence. Production requires that reference on the command line:
+Build and publish one application tag before starting; `ctl` resolves and pins
+its immutable registry digest. Confirm a successful backup and usable PITR
+window, and record its provider identifier or change-ticket evidence. Production
+requires that reference on the command line:
 
 ```bash
 uv run ctl migrate --tag GIT_SHA --backup-reference BACKUP_OR_PITR_REFERENCE
@@ -53,7 +54,7 @@ The command performs this fixed sequence:
 2. Pulls the candidate image and runs compatibility preflight while the current
    control service remains available.
 3. Stops the scheduler and API only after preflight succeeds and records the
-   exact tag as a pending migration release.
+   exact tag and digest as a pending migration release.
 4. Runs `airflow db migrate --use-migration-files` with a 30-minute bound and
    Airflow's cross-host database advisory lock.
 5. Checks all Airflow and external-provider migrations and emits final `current`

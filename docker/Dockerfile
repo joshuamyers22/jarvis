@@ -1,5 +1,5 @@
 # =============================================================================
-# One image: five workload roles plus the one-off database migration role.
+# One image: five workload roles plus one-off migration and release-probe roles.
 #
 # Layer order is cheapest-changing first, so editing a job module rebuilds only
 # the final COPY rather than the dependency solve.

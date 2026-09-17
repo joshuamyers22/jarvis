@@ -11,7 +11,7 @@ start_timeout=${JARVIS_START_TIMEOUT_SECONDS:-180}
 migration_timeout=${JARVIS_MIGRATION_TIMEOUT_SECONDS:-1860}
 
 usage() {
-  echo "usage: jarvis-compose <validate|supervise|stop|health|wait|migration-preflight|migration-current|migrate> <control|feed|notebook> [wait-seconds]" >&2
+  echo "usage: jarvis-compose <validate|candidate-preflight|image-reference|supervise|stop|health|wait|migration-preflight|migration-current|schema-current|migrate> <control|feed|notebook> [wait-seconds]" >&2
   exit 2
 }
 
@@ -19,7 +19,7 @@ usage() {
 action=$1
 role=$2
 case "$action" in
-  validate | supervise | stop | health | wait | migration-preflight | migration-current | migrate) ;;
+  validate | candidate-preflight | image-reference | supervise | stop | health | wait | migration-preflight | migration-current | schema-current | migrate) ;;
   *) usage ;;
 esac
 case "$role" in
@@ -30,7 +30,7 @@ case "$role" in
     ;;
 esac
 case "$action" in
-  migration-preflight | migration-current | migrate)
+  migration-preflight | migration-current | schema-current | migrate)
     [[ "$role" == "control" ]] || {
       echo "database migration actions require the control role" >&2
       exit 2
@@ -45,8 +45,11 @@ candidate_tag_env="${role_dir}/.env.candidate-tag"
 migration_tag_env="${role_dir}/.env.migration-tag"
 compose_file="${role_dir}/compose/${role}.yml"
 systemd_compose_file="${role_dir}/compose/${role}.systemd.yml"
+candidate_runtime_env="${role_dir}/runtime.candidate.env"
+candidate_compose_file="${role_dir}/compose.candidate/${role}.yml"
+candidate_systemd_compose_file="${role_dir}/compose.candidate/${role}.systemd.yml"
 case "$action" in
-  migration-preflight | migration-current | migrate)
+  migration-preflight | migration-current | schema-current | migrate)
     docker_config=$(mktemp -d /run/jarvis-migration.XXXXXX)
     trap 'rm -rf -- "$docker_config"' EXIT
     ;;
@@ -174,6 +177,9 @@ compose() {
 }
 
 candidate_compose() {
+  local runtime_env=$candidate_runtime_env
+  local compose_file=$candidate_compose_file
+  local systemd_compose_file=$candidate_systemd_compose_file
   compose_with_tag "$candidate_tag_env" "$@"
 }
 
@@ -269,10 +275,50 @@ run_migration_container() {
     "$compose_function" run --rm --no-deps migration "$command"
 }
 
+candidate_preflight() {
+  local expected_cloud image_cloud image_reference expected_digest
+  local -a images
+  local runtime_env=$candidate_runtime_env
+  local compose_file=$candidate_compose_file
+  local systemd_compose_file=$candidate_systemd_compose_file
+  validate_layout_with_tag "$candidate_tag_env"
+  candidate_compose config --quiet
+  registry_login
+  compose_timeout="${start_timeout}s" candidate_compose pull
+  mapfile -t images < <(candidate_compose config --images | sort -u)
+  (( ${#images[@]} == 1 )) || {
+    echo "candidate must resolve to exactly one image" >&2
+    return 1
+  }
+  image_reference=${images[0]}
+  expected_digest=$(sed -n 's/^IMAGE_DIGEST=//p' "$candidate_tag_env")
+  [[ "$image_reference" == *@"$expected_digest" ]] || {
+    echo "candidate image is not pinned to the selected digest" >&2
+    return 1
+  }
+  expected_cloud=$(env_value RP_CLOUD)
+  image_cloud=$(docker image inspect \
+    --format '{{range .Config.Env}}{{println .}}{{end}}' "$image_reference" | \
+    sed -n 's/^RP_IMAGE_CLOUD=//p')
+  [[ -n "$expected_cloud" && "$image_cloud" == "$expected_cloud" ]] || {
+    echo "candidate image provider does not match RP_CLOUD" >&2
+    return 1
+  }
+  printf '%s\n' "$image_reference"
+}
+
 case "$action" in
   validate)
     validate_layout
     compose config --quiet
+    ;;
+  candidate-preflight)
+    candidate_preflight
+    ;;
+  image-reference)
+    validate_layout
+    compose config --quiet
+    compose config --images | sort -u
     ;;
   stop)
     stop_project
@@ -300,6 +346,10 @@ case "$action" in
   migration-current)
     run_migration_container \
       "$candidate_tag_env" migration-current "$start_timeout" candidate_compose
+    ;;
+  schema-current)
+    run_migration_container \
+      "$tag_env" migration-current "$start_timeout" compose
     ;;
   migrate)
     run_migration_container \

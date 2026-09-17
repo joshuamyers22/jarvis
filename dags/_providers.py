@@ -135,7 +135,9 @@ def dispatch_azure(
         AzureContainerInstancesOperator,
     )
 
-    image = f"{os.environ['RP_IMAGE']}:{os.environ['RP_IMAGE_TAG']}"
+    digest = os.environ.get("RP_IMAGE_DIGEST", "")
+    digest_suffix = f"@{digest}" if digest else ""
+    image = f"{os.environ['RP_IMAGE']}:{os.environ['RP_IMAGE_TAG']}{digest_suffix}"
     memory_gb = _memory_mib(memory) / 1024
 
     base_env = {

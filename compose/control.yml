@@ -9,7 +9,7 @@
 # if this box needs more than 2 GB, compute is in the wrong place.
 # =============================================================================
 x-airflow-common: &airflow-common
-  image: ${IMAGE}:${IMAGE_TAG}
+  image: ${IMAGE}:${IMAGE_TAG}${IMAGE_DIGEST_SUFFIX:-}
   restart: unless-stopped
   environment: &airflow-env
     # --- database ------------------------------------------------------------
@@ -59,6 +59,7 @@ x-airflow-common: &airflow-common
     RP_TIMEZONE: ${RP_TIMEZONE:-UTC}
     RP_IMAGE: ${IMAGE}
     RP_IMAGE_TAG: ${IMAGE_TAG}
+    RP_IMAGE_DIGEST: ${IMAGE_DIGEST:-}
     # --- provider handles (only the relevant ones are populated) -------------
     RP_PROJECT_ID: ${RP_PROJECT_ID:-}
     RP_REGION: ${RP_REGION:-}

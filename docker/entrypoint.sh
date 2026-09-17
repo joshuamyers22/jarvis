@@ -65,6 +65,11 @@ case "${1:-}" in
     exec python -m ctl.database_migration current
     ;;
 
+  release-probe)
+    shift
+    exec python -m ctl.release_probe "$@"
+    ;;
+
   jupyter)
     exec jupyter lab --config=/etc/jupyter/jupyter_server_config.py
     ;;

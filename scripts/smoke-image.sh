@@ -129,5 +129,11 @@ sleep 3
 [[ "$(docker inspect --format '{{.State.Running}}' "$feed")" == "true" ]]
 
 docker run --rm "$image" job pull_ohlcv --help >/dev/null
+docker run --rm \
+  --env RP_CLOUD="$cloud" \
+  --env RP_SCRATCH_URI=/tmp/jarvis-release-probe \
+  "$image" release-probe \
+  --release-id "smoke-${cloud}" \
+  --expected-cloud "$cloud" | grep -q '^JARVIS_RELEASE_PROBE='
 
 echo "all Jarvis roles passed for ${cloud}"

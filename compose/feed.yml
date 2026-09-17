@@ -6,7 +6,7 @@
 # =============================================================================
 services:
   feed:
-    image: ${IMAGE}:${IMAGE_TAG}
+    image: ${IMAGE}:${IMAGE_TAG}${IMAGE_DIGEST_SUFFIX:-}
     command: ["feed"]
     restart: always
     stop_grace_period: 30s   # long enough for the SIGTERM handler to flush

@@ -439,10 +439,10 @@ Exit gate:
 
 Goal: turn the current SSH/Compose scaffold into a repeatable service deployment.
 
-Implementation status (2026-09-17): P3.1 through P3.3 are implemented and
-locally validated. Live image replacement, service recovery, and database
-migration/rollback drills remain environment evidence; P3.4 through P3.6 are
-not yet complete.
+Implementation status (2026-09-17): P3.1 through P3.4 are implemented and
+locally validated. Live image replacement, service recovery, database migration,
+and transactional rollback drills remain environment evidence; P3.5 and P3.6
+are not yet complete.
 
 - **P3.1 Replace mutable VM bootstrap — complete locally.** A pinned Packer build
   now creates a private, Shielded Debian 12 image with exact Docker/Compose and
@@ -479,9 +479,19 @@ not yet complete.
   staging drill. CI tests compatibility states and initializes a blank PostgreSQL
   database through the migration role before smoke-testing services. Live lock,
   migration, and rollback evidence is still required.
-- **P3.4 Make deploys transactional.** Extend `ctl` with `plan`, `status`, `doctor`,
-  and `rollback`; verify image digest, provider, schema compatibility, health, remote
-  logs, and synthetic output before declaring success.
+- **P3.4 Make deploys transactional — complete locally.** `ctl plan` resolves a
+  tag to its immutable registry digest; `status` compares desired and running
+  references; `doctor` checks provider configuration, schema, health, logs, and
+  accepted-release evidence; and `rollback` restores only a preflighted,
+  schema-compatible previous release. Deploys stage a candidate, verify its
+  baked provider, preserve the active digest, health-gate each host, prove logs
+  are retrievable, update batch to the same digest, and accept the transaction
+  only after a scratch-storage synthetic job writes and reads its output marker.
+  Failures emit remote logs and roll activated roles and batch back in reverse
+  order; a first deployment without a prior digest fails stopped. CI covers the
+  release model, provider and schema gates, rollback ordering, synthetic probe,
+  and supervisor contract. A staged failed-health and sub-15-minute rollback
+  drill remains required under the transactional deployment runbook.
 - **P3.5 Make configuration declarative.** Generate non-secret runtime configuration
   from Terraform outputs and environment overlays. Detect drift between Terraform,
   runtime configuration, and the deployed digest.
