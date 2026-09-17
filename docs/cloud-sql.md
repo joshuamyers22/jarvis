@@ -32,10 +32,11 @@ The initial production objectives are:
 
 These are provisional engineering targets, not validated service levels. The
 `database_policy.recovery_objectives.status` output remains
-`provisional-pending-p2.5-restore-benchmark` until P2.5 runs the staging
-benchmark. That benchmark must record the source and target instances, requested
-and achieved recovery timestamp, start and ready times, validation queries,
-Airflow smoke-test result, operator, ticket, and cleanup evidence. If the measured
+`p2.5-automation-ready-live-evidence-required` until the first scheduled or
+manual staging drill passes. The automated benchmark records the source and
+target instances, requested recovery timestamp, measured RPO/RTO, validation
+queries, Airflow smoke-test result, operator, ticket, and cleanup evidence. See
+the [recovery-drill runbook](recovery-drills.md). If the measured
 RPO or RTO misses its target, do not relabel it as met: either improve the restore
 path or approve a cross-region disaster-recovery design.
 
@@ -59,9 +60,9 @@ gcloud sql backups list \
 ```
 
 Verify that the latest automated backup succeeded and that the earliest
-restorable PITR timestamp covers the expected seven-day window. Alerting and
-automated restore execution are completed in P2.5 and Phase 5; neither a
-successful Terraform apply nor a listed backup proves restorability.
+restorable PITR timestamp covers the expected seven-day window. Run or inspect
+the quarterly P2.5 recovery evidence; neither a successful Terraform apply nor a
+listed backup proves restorability.
 
 ## Maintenance rollout
 

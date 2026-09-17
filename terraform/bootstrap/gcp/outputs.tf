@@ -31,3 +31,14 @@ output "protection" {
     uniform_bucket_access        = true
   }
 }
+
+output "state_recovery_access" {
+  description = "Least-privilege state access boundary for non-production recovery drills."
+  value = {
+    principal_count        = length(var.state_recovery_principals)
+    metadata_list_only     = true
+    readable_source_object = "gs://${google_storage_bucket.state.name}/environments/stage/default.tfstate"
+    writable_prefix        = "gs://${google_storage_bucket.state.name}/recovery-drills/"
+    live_state_write       = false
+  }
+}

@@ -78,6 +78,20 @@ variable "state_reader_principals" {
   }
 }
 
+variable "state_recovery_principals" {
+  type        = set(string)
+  description = "Non-production recovery identities allowed to inspect staging state history and use only the isolated recovery-drills prefix."
+  default     = []
+
+  validation {
+    condition = alltrue([
+      for principal in var.state_recovery_principals :
+      can(regex("^(user|group|serviceAccount|domain|principal|principalSet):.+$", principal))
+    ])
+    error_message = "Every state recovery principal must be a valid, non-public IAM member."
+  }
+}
+
 variable "bucket_admin_principals" {
   type        = set(string)
   description = "IAM members allowed to administer this bucket only, normally a platform administrator group."

@@ -45,6 +45,8 @@ availability, backup, PITR, maintenance, Query Insights, or deletion settings.
 Seed and rotate credentials only through the
 [runtime-secrets procedure](runtime-secrets.md); deployment files contain
 identifiers, never values.
+Apply and exercise the [quarterly recovery contract](recovery-drills.md) in
+staging before claiming the provisional RPO or RTO.
 
 ```bash
 scripts/gcp-live.sh dev validate
@@ -120,9 +122,10 @@ and logs, then update remaining roles. Keep the previous tag for rollback.
 Schema changes need explicit forward and rollback plans; the CLI does not
 perform migrations.
 
-Regularly test database restoration under the documented
-[Cloud SQL recovery objectives](cloud-sql.md#recovery-objectives), host rebuilds, notebook-volume recovery,
-versioned object recovery, and rollback to a known-good image SHA. Compute nodes
+The scheduled P2.5 workflow tests database PITR, versioned-object recovery,
+Terraform-state recovery, and notebook-volume restoration each quarter under
+the documented [Cloud SQL recovery objectives](cloud-sql.md#recovery-objectives).
+Also test host rebuilds and rollback to a known-good image SHA. Compute nodes
 should be disposable; required research data belongs in durable storage.
 
 See [ADVERSARIAL_REVIEW.md](../ADVERSARIAL_REVIEW.md) for current limitations.

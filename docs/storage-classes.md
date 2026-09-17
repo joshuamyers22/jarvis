@@ -36,6 +36,11 @@ Cloud SQL accepts encrypted connections only.
 - the notebook identity reads `data` and writes `scratch`; and
 - no runtime identity can access `backup`.
 
+The dedicated non-production recovery automation identity is not a runtime
+workload. It has create-only access to append immutable drill evidence to the
+backup bucket; it cannot read or replace evidence. Production creates no such
+binding.
+
 The GCP feed grant is create-only. AWS `PutObject` and Azure Blob Data
 Contributor do not provide the same no-overwrite guarantee by themselves;
 vendor key design must therefore use immutable object names and completion
@@ -90,7 +95,7 @@ Terraform exposes the same provider-neutral outputs from every module:
 
 Runtime configuration maps `storage_uri` to `RP_STORAGE_URI`, `scratch_uri` to
 `RP_SCRATCH_URI`, and `airflow_logs_uri` to `AIRFLOW_REMOTE_LOGS`. Backup
-automation will consume `backup_uri` in P2.3/P2.5; do not attach a runtime
+automation consumes `backup_uri` only for P2.5 evidence; do not attach a runtime
 identity as a shortcut.
 
 ## Provider inputs

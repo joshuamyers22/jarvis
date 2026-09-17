@@ -14,7 +14,15 @@ locals {
   automation_service_accounts = {
     deployer = "Terraform infrastructure deployment"
     ci       = "GitHub Actions image publishing"
+    recovery = "Non-production recovery drill automation"
   }
+
+  recovery_project_roles = toset([
+    "roles/cloudsql.admin",
+    "roles/compute.instanceAdmin.v1",
+    "roles/compute.osLogin",
+    "roles/iap.tunnelResourceAccessor",
+  ])
 
   service_accounts = merge(
     local.runtime_service_accounts,
@@ -189,6 +197,46 @@ resource "google_service_account_iam_member" "ci_workload_identity" {
   depends_on = [google_iam_workload_identity_pool_provider.github]
 }
 
+# Scheduled recovery automation is intentionally disabled in production. The
+# staging identity uses the same repository/environment/ref-bound OIDC trust as
+# CI, but has a separate service account and permissions.
+resource "google_service_account_iam_member" "recovery_workload_identity" {
+  count = var.env == "prod" ? 0 : 1
+
+  service_account_id = google_service_account.roles["recovery"].name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository_id/${var.github_repository_id}"
+
+  depends_on = [google_iam_workload_identity_pool_provider.github]
+}
+
+resource "google_project_iam_member" "recovery" {
+  for_each = var.env == "prod" ? toset([]) : local.recovery_project_roles
+
+  project = var.project_id
+  role    = each.value
+  member  = "serviceAccount:${google_service_account.roles["recovery"].email}"
+
+  dynamic "condition" {
+    for_each = each.value == "roles/iap.tunnelResourceAccessor" ? [1] : []
+    content {
+      title       = "recovery-iap-ssh-only"
+      description = "Allow recovery validation to tunnel only over SSH."
+      expression  = "destination.port == 22"
+    }
+  }
+}
+
+# OS Login on the control VM requires actAs on its attached identity. Recovery
+# automation cannot act as batch, feed, notebook, CI, or deployer identities.
+resource "google_service_account_iam_member" "recovery_act_as_control" {
+  count = var.env == "prod" ? 0 : 1
+
+  service_account_id = google_service_account.roles["control"].name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.roles["recovery"].email}"
+}
+
 # CI can publish images, but cannot deploy infrastructure or impersonate any
 # runtime identity.
 resource "google_artifact_registry_repository_iam_member" "ci_writer" {
@@ -263,6 +311,30 @@ resource "google_storage_bucket_iam_member" "notebook_scratch" {
   bucket = google_storage_bucket.scratch.name
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${google_service_account.roles["notebook"].email}"
+}
+
+# Drills can mutate only their dedicated canary prefix in the data bucket and
+# can append evidence to backup storage. They cannot read research data.
+resource "google_storage_bucket_iam_member" "recovery_data_canary" {
+  count = var.env == "prod" ? 0 : 1
+
+  bucket = google_storage_bucket.data.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.roles["recovery"].email}"
+
+  condition {
+    title       = "recovery-drill-canaries"
+    description = "Permit recovery automation only under recovery-drills/."
+    expression  = "resource.name.startsWith(\"projects/_/buckets/${google_storage_bucket.data.name}/objects/recovery-drills/\")"
+  }
+}
+
+resource "google_storage_bucket_iam_member" "recovery_evidence" {
+  count = var.env == "prod" ? 0 : 1
+
+  bucket = google_storage_bucket.backup.name
+  role   = "roles/storage.objectCreator"
+  member = "serviceAccount:${google_service_account.roles["recovery"].email}"
 }
 
 # No runtime identity receives backup-bucket access. P2.3/P2.5 will attach a

@@ -76,6 +76,16 @@ project. Add deployers to `state_writer_principals` only after their live root
 has created them, following the [identity handoff](../../../docs/gcp-identity.md).
 IAM changes may take several minutes to become effective.
 
+After staging creates `research-stage-recovery`, add its service-account
+principal to `state_recovery_principals`. The bootstrap stack grants only a
+custom metadata-list permission, conditional read access to
+`environments/stage/default.tfstate`, and conditional object administration
+under `recovery-drills/`. It cannot write the live state object or read another
+environment's state. Do not add the recovery identity to
+`state_writer_principals` or `bucket_admin_principals`, and do not grant the
+production recovery identity. See the
+[recovery-drill runbook](../../../docs/recovery-drills.md).
+
 ## Retention and recovery
 
 Do not add or lock a bucket-wide retention policy. Terraform's GCS backend uses
@@ -90,3 +100,7 @@ Cloud Storage and restoring it as the live generation. Never use
 `terraform state push -force` without first preserving the current remote state
 and recording incident approval. Removing `prevent_destroy` or deleting this
 bucket requires a separately reviewed break-glass change.
+
+The quarterly staging drill never overwrites the live state object. It copies a
+noncurrent generation to `recovery-drills/DRILL_ID/default.tfstate`, parses and
+validates it in memory, then deletes the isolated copy by generation number.

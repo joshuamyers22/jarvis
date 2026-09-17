@@ -47,6 +47,14 @@ A managed file-sync service can replicate a host directory, but should not allow
 concurrent writers. If replacing the named volume with a bind mount, configure
 an explicit host path and ensure ownership matches container UID 50000.
 
+On GCP, Terraform attaches a daily, 14-day snapshot schedule to the notebook
+boot disk because the Docker named volume currently resides there. Automatic
+snapshots survive source-disk deletion. The quarterly
+[recovery drill](recovery-drills.md) requires a stopped notebook, creates an
+on-demand snapshot, restores it to an isolated disk, validates its provenance
+and size, and then deletes the drill resources. This is the tested recovery
+path until notebook data moves to a separate persistent disk.
+
 ## Shared notebooks on Amazon EFS
 
 The AWS module can provision encrypted EFS storage or authorize a notebook host

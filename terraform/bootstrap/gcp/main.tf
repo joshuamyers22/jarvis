@@ -107,6 +107,54 @@ resource "google_storage_bucket_iam_member" "state_readers" {
   member = each.value
 }
 
+# Cloud Storage list permission is evaluated on the bucket and cannot be
+# restricted by object-name conditions. A list-only custom role lets the drill
+# discover noncurrent generations without granting read access to their data.
+resource "google_project_iam_custom_role" "state_recovery_lister" {
+  project     = var.project_id
+  role_id     = "jarvisStateRecoveryLister"
+  title       = "Jarvis state recovery generation lister"
+  description = "List state object metadata for isolated non-production recovery drills."
+  permissions = ["storage.objects.list"]
+  stage       = "GA"
+}
+
+resource "google_storage_bucket_iam_member" "state_recovery_list" {
+  for_each = var.state_recovery_principals
+
+  bucket = google_storage_bucket.state.name
+  role   = google_project_iam_custom_role.state_recovery_lister.name
+  member = each.value
+}
+
+resource "google_storage_bucket_iam_member" "state_recovery_source" {
+  for_each = var.state_recovery_principals
+
+  bucket = google_storage_bucket.state.name
+  role   = "roles/storage.objectViewer"
+  member = each.value
+
+  condition {
+    title       = "staging-state-recovery-source"
+    description = "Read only the staging state object and its generations."
+    expression  = "resource.name == \"projects/_/buckets/${google_storage_bucket.state.name}/objects/environments/stage/default.tfstate\""
+  }
+}
+
+resource "google_storage_bucket_iam_member" "state_recovery_workspace" {
+  for_each = var.state_recovery_principals
+
+  bucket = google_storage_bucket.state.name
+  role   = "roles/storage.objectAdmin"
+  member = each.value
+
+  condition {
+    title       = "isolated-state-recovery-workspace"
+    description = "Create, inspect, and remove only isolated recovery drill objects."
+    expression  = "resource.name.startsWith(\"projects/_/buckets/${google_storage_bucket.state.name}/objects/recovery-drills/\")"
+  }
+}
+
 # Bucket administration remains explicit and bucket-scoped. These principals
 # can maintain lifecycle and IAM settings but receive no project-wide role from
 # this stack.

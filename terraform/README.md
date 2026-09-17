@@ -56,7 +56,10 @@ hold: `storage_uri`, `storage_locations`, `storage_contract`,
 emits `database_policy` as its explicit Cloud SQL availability and recovery
 contract and `runtime_secret_contract` as its non-secret secret-ID/IAM contract;
 see the [Cloud SQL runbook](../docs/cloud-sql.md) and
-[runtime-secrets runbook](../docs/runtime-secrets.md). Data, Airflow
+[runtime-secrets runbook](../docs/runtime-secrets.md). The GCP
+`recovery_contract` exposes the non-production drill identity, notebook snapshot
+policy, evidence prefixes, and RPO/RTO boundaries described in the
+[recovery-drill runbook](../docs/recovery-drills.md). Data, Airflow
 logs, scratch, and backups use distinct resource-level boundaries; see the
 [storage-class runbook](../docs/storage-classes.md). Feed only non-secret outputs
 and secret identifiers into `.env`; values remain in the provider store and are

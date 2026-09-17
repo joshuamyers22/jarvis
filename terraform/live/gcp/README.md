@@ -55,6 +55,9 @@ The [storage-class runbook](../../../docs/storage-classes.md) defines the output
 mapping and staged migration for an environment that already contains logs.
 The [Cloud SQL runbook](../../../docs/cloud-sql.md) defines backup, PITR,
 maintenance, deletion-protection, rollout, and restore-benchmark expectations.
+The [recovery-drill runbook](../../../docs/recovery-drills.md) defines the
+quarterly staging exercise, GitHub environment variables, state-bucket handoff,
+evidence contract, and production deny boundary.
 
 ## Plan and apply
 

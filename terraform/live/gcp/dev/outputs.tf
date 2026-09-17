@@ -103,6 +103,10 @@ output "runtime_secret_contract" {
   value = module.platform.runtime_secret_contract
 }
 
+output "recovery_contract" {
+  value = module.platform.recovery_contract
+}
+
 output "network" {
   value = {
     name                 = module.network.network_name

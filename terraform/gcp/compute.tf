@@ -137,3 +137,41 @@ resource "google_compute_instance" "notebook" {
   metadata_startup_script   = local.startup_script
   allow_stopping_for_update = true
 }
+
+# Notebook files currently live in Docker's named volume on the notebook boot
+# disk. Daily snapshots make that volume recoverable until Phase 3 separates it
+# from the machine image. Keeping snapshots after source-disk deletion protects
+# against an accidental VM replacement removing the last usable copy.
+resource "google_compute_resource_policy" "notebook_snapshots" {
+  name        = "${local.name_prefix}-notebook-daily"
+  region      = var.region
+  description = "Daily notebook-volume snapshots for recovery drills"
+
+  snapshot_schedule_policy {
+    schedule {
+      daily_schedule {
+        days_in_cycle = 1
+        start_time    = "04:00"
+      }
+    }
+
+    retention_policy {
+      max_retention_days    = var.notebook_snapshot_retention_days
+      on_source_disk_delete = "KEEP_AUTO_SNAPSHOTS"
+    }
+
+    snapshot_properties {
+      guest_flush       = false
+      storage_locations = [var.region]
+      labels            = merge(local.common_labels, { backup_purpose = "notebook-volume" })
+    }
+  }
+}
+
+resource "google_compute_disk_resource_policy_attachment" "notebook_snapshots" {
+  name    = google_compute_resource_policy.notebook_snapshots.name
+  project = var.project_id
+  zone    = var.zone
+  # Compute Engine names an auto-created boot disk after its instance.
+  disk = google_compute_instance.notebook.name
+}

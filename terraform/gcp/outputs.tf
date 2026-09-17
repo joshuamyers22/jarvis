@@ -20,6 +20,7 @@ output "configuration" {
     log_retention_days           = var.log_delete_after_days
     scratch_retention_days       = var.scratch_delete_after_days
     noncurrent_version_days      = var.noncurrent_version_delete_after_days
+    notebook_snapshot_days       = var.notebook_snapshot_retention_days
   }
 }
 
@@ -276,7 +277,7 @@ output "database_policy" {
     recovery_objectives = {
       rpo_minutes = 5
       rto_minutes = 120
-      status      = "provisional-pending-p2.5-restore-benchmark"
+      status      = "p2.5-automation-ready-live-evidence-required"
     }
   }
 }
@@ -289,6 +290,7 @@ output "github_oidc" {
   value = {
     workload_identity_provider = google_iam_workload_identity_pool_provider.github.name
     ci_service_account         = google_service_account.roles["ci"].email
+    recovery_service_account   = google_service_account.roles["recovery"].email
     repository                 = var.github_repository
     repository_id              = var.github_repository_id
     repository_owner_id        = var.github_repository_owner_id
@@ -321,7 +323,8 @@ output "iam_contract" {
       notebook = contains(local.bigquery_job_workloads, "notebook") ? [
         google_project_iam_member.shared_bigquery_job_user["notebook"].role,
       ] : []
-      ci = []
+      ci       = []
+      recovery = var.env == "prod" ? [] : sort(tolist(local.recovery_project_roles))
     }
     resource_roles = {
       control = sort([
@@ -348,6 +351,10 @@ output "iam_contract" {
         google_artifact_registry_repository_iam_member.runtime_readers["notebook"].role,
       ])
       ci = [google_artifact_registry_repository_iam_member.ci_writer.role]
+      recovery = var.env == "prod" ? [] : sort([
+        google_storage_bucket_iam_member.recovery_data_canary[0].role,
+        google_storage_bucket_iam_member.recovery_evidence[0].role,
+      ])
     }
     workload_attachments = {
       control  = google_compute_instance.control.service_account[0].email
@@ -413,5 +420,26 @@ output "runtime_secret_contract" {
       consumer  = "feed"
       env_ref   = "RP_FEED_CREDENTIAL_SECRET_ID"
     }
+  }
+}
+
+output "recovery_contract" {
+  description = "Quarterly recovery-drill identity, backup controls, and safety boundary."
+  value = {
+    enabled                   = var.env != "prod"
+    environment               = var.env
+    service_account           = google_service_account.roles["recovery"].email
+    production_access         = false
+    data_canary_prefix        = "gs://${google_storage_bucket.data.name}/recovery-drills/"
+    evidence_prefix           = "gs://${google_storage_bucket.backup.name}/recovery-drills/"
+    notebook_snapshot_policy  = google_compute_resource_policy.notebook_snapshots.name
+    notebook_source_disk      = google_compute_instance.notebook.name
+    snapshot_retention_days   = var.notebook_snapshot_retention_days
+    source_disk_delete_policy = google_compute_resource_policy.notebook_snapshots.snapshot_schedule_policy[0].retention_policy[0].on_source_disk_delete
+    objectives = {
+      rpo_seconds = 300
+      rto_seconds = 7200
+    }
+    state_bucket_access = "grant this service account as a bootstrap state_recovery_principal"
   }
 }

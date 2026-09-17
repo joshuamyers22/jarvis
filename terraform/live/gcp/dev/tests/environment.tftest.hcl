@@ -11,8 +11,6 @@ mock_provider "google" {
     }
   }
 }
-mock_provider "random" {}
-
 variables {
   project_id                 = "jarvis-research-dev"
   bucket_name                = "jarvis-research-dev-data"
@@ -186,6 +184,16 @@ run "development_boundary" {
       output.github_oidc.ref == "refs/heads/main"
     )
     error_message = "Development federation must be bound to the exact repository, development environment, and main branch."
+  }
+
+  assert {
+    condition = (
+      output.recovery_contract.enabled &&
+      !output.recovery_contract.production_access &&
+      output.recovery_contract.environment == "dev" &&
+      output.recovery_contract.snapshot_retention_days == 14
+    )
+    error_message = "Development may exercise recovery without any production access."
   }
 }
 

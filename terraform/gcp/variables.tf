@@ -18,6 +18,21 @@ variable "zone" {
   default = "us-central1-a"
 }
 
+variable "notebook_snapshot_retention_days" {
+  type        = number
+  description = "Days to retain automatic notebook boot-disk snapshots."
+  default     = 14
+
+  validation {
+    condition = (
+      var.notebook_snapshot_retention_days >= 7 &&
+      var.notebook_snapshot_retention_days <= 30 &&
+      floor(var.notebook_snapshot_retention_days) == var.notebook_snapshot_retention_days
+    )
+    error_message = "notebook_snapshot_retention_days must be a whole number from 7 through 30."
+  }
+}
+
 variable "env" {
   type        = string
   description = "Deployment environment. Live roots pass this as a literal."

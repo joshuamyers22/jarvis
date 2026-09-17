@@ -11,8 +11,6 @@ mock_provider "google" {
     }
   }
 }
-mock_provider "random" {}
-
 variables {
   project_id                 = "jarvis-research-stage"
   bucket_name                = "jarvis-research-stage-data"
@@ -186,6 +184,18 @@ run "staging_boundary" {
       output.github_oidc.ref == "refs/heads/main"
     )
     error_message = "Staging federation must be bound to the exact repository, staging environment, and main branch."
+  }
+
+  assert {
+    condition = (
+      output.recovery_contract.enabled &&
+      !output.recovery_contract.production_access &&
+      output.recovery_contract.environment == "stage" &&
+      output.recovery_contract.objectives.rpo_seconds == 300 &&
+      output.recovery_contract.objectives.rto_seconds == 7200 &&
+      output.recovery_contract.snapshot_retention_days == 14
+    )
+    error_message = "Staging must expose the isolated quarterly recovery contract."
   }
 }
 

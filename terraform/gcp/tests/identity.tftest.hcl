@@ -56,7 +56,7 @@ run "least_privilege_identity_contract" {
   command = apply
 
   assert {
-    condition     = toset(keys(google_service_account.roles)) == toset(["deployer", "ci", "control", "job", "feed", "notebook"])
+    condition     = toset(keys(google_service_account.roles)) == toset(["deployer", "ci", "recovery", "control", "job", "feed", "notebook"])
     error_message = "Every automation and runtime role must have a separate user-managed service account."
   }
 
@@ -126,6 +126,18 @@ run "least_privilege_identity_contract" {
       ])
     )
     error_message = "Named deployer principals may mint short-lived credentials only through the deployer service account."
+  }
+
+  assert {
+    condition = (
+      length(google_service_account_iam_member.recovery_workload_identity) == 1 &&
+      google_service_account_iam_member.recovery_workload_identity[0].role == "roles/iam.workloadIdentityUser" &&
+      toset([for binding in google_project_iam_member.recovery : binding.role]) == local.recovery_project_roles &&
+      google_project_iam_member.recovery["roles/iap.tunnelResourceAccessor"].condition[0].expression == "destination.port == 22" &&
+      google_service_account_iam_member.recovery_act_as_control[0].service_account_id == google_service_account.roles["control"].name &&
+      google_service_account_iam_member.recovery_act_as_control[0].role == "roles/iam.serviceAccountUser"
+    )
+    error_message = "Non-production recovery automation must use its own OIDC identity and may act only as control."
   }
 
   assert {
@@ -203,6 +215,29 @@ run "least_privilege_identity_contract" {
 
   assert {
     condition = (
+      google_storage_bucket_iam_member.recovery_data_canary[0].bucket == google_storage_bucket.data.name &&
+      google_storage_bucket_iam_member.recovery_data_canary[0].role == "roles/storage.objectAdmin" &&
+      strcontains(google_storage_bucket_iam_member.recovery_data_canary[0].condition[0].expression, "/objects/recovery-drills/") &&
+      google_storage_bucket_iam_member.recovery_evidence[0].bucket == google_storage_bucket.backup.name &&
+      google_storage_bucket_iam_member.recovery_evidence[0].role == "roles/storage.objectCreator"
+    )
+    error_message = "Recovery automation may mutate only data canaries and append drill evidence."
+  }
+
+  assert {
+    condition = (
+      google_compute_resource_policy.notebook_snapshots.snapshot_schedule_policy[0].schedule[0].daily_schedule[0].days_in_cycle == 1 &&
+      google_compute_resource_policy.notebook_snapshots.snapshot_schedule_policy[0].retention_policy[0].max_retention_days == 14 &&
+      google_compute_resource_policy.notebook_snapshots.snapshot_schedule_policy[0].retention_policy[0].on_source_disk_delete == "KEEP_AUTO_SNAPSHOTS" &&
+      google_compute_disk_resource_policy_attachment.notebook_snapshots.name == google_compute_resource_policy.notebook_snapshots.name &&
+      output.recovery_contract.objectives.rpo_seconds == 300 &&
+      output.recovery_contract.objectives.rto_seconds == 7200
+    )
+    error_message = "Notebook snapshots and recovery objectives must remain explicit and testable."
+  }
+
+  assert {
+    condition = (
       toset(keys(output.storage_locations)) == toset(["data", "airflow_logs", "scratch", "backup"]) &&
       output.storage_contract.data.versioning &&
       !output.storage_contract.airflow_logs.versioning &&
@@ -266,6 +301,8 @@ run "least_privilege_identity_contract" {
         output.iam_contract.resource_roles.feed,
         output.iam_contract.resource_roles.notebook,
         output.iam_contract.resource_roles.ci,
+        output.iam_contract.runtime_project_roles.recovery,
+        output.iam_contract.resource_roles.recovery,
       )),
       toset(["roles/owner", "roles/editor", "roles/run.admin", "roles/storage.admin", "roles/iam.serviceAccountUser"]),
     )) == 0
@@ -369,4 +406,28 @@ run "backup_retention_must_cover_pitr_window" {
   }
 
   expect_failures = [google_sql_database_instance.airflow]
+}
+
+run "production_recovery_automation_is_disabled" {
+  command = plan
+
+  variables {
+    env                          = "prod"
+    db_availability_type         = "REGIONAL"
+    db_deletion_protection       = true
+    workload_deletion_protection = true
+  }
+
+  assert {
+    condition = (
+      length(google_service_account_iam_member.recovery_workload_identity) == 0 &&
+      length(google_project_iam_member.recovery) == 0 &&
+      length(google_service_account_iam_member.recovery_act_as_control) == 0 &&
+      length(google_storage_bucket_iam_member.recovery_data_canary) == 0 &&
+      length(google_storage_bucket_iam_member.recovery_evidence) == 0 &&
+      !output.recovery_contract.enabled &&
+      !output.recovery_contract.production_access
+    )
+    error_message = "Automated recovery drills must have no production trust or permissions."
+  }
 }

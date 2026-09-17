@@ -405,9 +405,19 @@ Goal: close the data-loss and credential gaps before deploying real workloads.
   `.env`. Tests enforce the deployment boundary, credential contract, DAG
   override guard, and per-secret IAM mapping; the seeding and rotation runbook is
   documented.
-- **P2.5 Test restoration.** Automate quarterly Cloud SQL restore, object-version
-  recovery, Terraform-state recovery, and notebook-volume restore exercises in a
-  non-production project.
+- **P2.5 Test restoration — complete locally; first live evidence required.** A
+  quarterly staging workflow now runs isolated Cloud SQL PITR, versioned-object,
+  noncurrent Terraform-state, and notebook-volume restore exercises. The runner
+  refuses production projects, requires an explicit project confirmation, uses
+  generation preconditions, validates SQL and Airflow from the private control
+  node, records measured RPO/RTO and checksums, and cleans up every temporary
+  resource. Terraform adds a dedicated non-production recovery identity with
+  prefix-scoped data access, create-only evidence access, no production grants,
+  and a daily 14-day notebook snapshot schedule that survives source-disk
+  deletion. Evidence is stored immutably in the backup bucket and as a 90-day
+  workflow artifact. The automation, policy tests, and runbook are complete;
+  the provisional recovery objective becomes accepted only after the first live
+  staging evidence bundle reports `passed`.
 - **P2.6 Define data ownership.** Document raw, derived, artifact, scratch, quarantine,
   and log prefixes; owners; retention; writers; readers; and recovery expectations.
 

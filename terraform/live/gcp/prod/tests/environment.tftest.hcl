@@ -11,8 +11,6 @@ mock_provider "google" {
     }
   }
 }
-mock_provider "random" {}
-
 variables {
   project_id                 = "jarvis-research-prod"
   bucket_name                = "jarvis-research-prod-data"
@@ -97,7 +95,7 @@ run "production_boundary" {
       output.database_policy.deletion_protection.api &&
       output.database_policy.recovery_objectives.rpo_minutes == 5 &&
       output.database_policy.recovery_objectives.rto_minutes == 120 &&
-      output.database_policy.recovery_objectives.status == "provisional-pending-p2.5-restore-benchmark"
+      output.database_policy.recovery_objectives.status == "p2.5-automation-ready-live-evidence-required"
     )
     error_message = "Production must enforce the complete regional, private, recoverable Cloud SQL policy."
   }
@@ -196,6 +194,16 @@ run "production_boundary" {
       output.github_oidc.ref == "refs/heads/main"
     )
     error_message = "Production federation must be bound to the exact repository, production environment, and main branch."
+  }
+
+  assert {
+    condition = (
+      !output.recovery_contract.enabled &&
+      !output.recovery_contract.production_access &&
+      output.recovery_contract.snapshot_retention_days == 14 &&
+      output.recovery_contract.source_disk_delete_policy == "KEEP_AUTO_SNAPSHOTS"
+    )
+    error_message = "Production must retain notebook backups without granting automated recovery access."
   }
 }
 

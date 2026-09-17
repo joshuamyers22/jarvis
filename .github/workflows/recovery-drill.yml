@@ -1,0 +1,92 @@
+name: quarterly recovery drill
+
+on:
+  schedule:
+    - cron: "17 13 1 1,4,7,10 *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: quarterly-recovery-stage
+  cancel-in-progress: false
+
+jobs:
+  staging-recovery:
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 180
+    env:
+      RECOVERY_PROJECT_ID: ${{ vars.GCP_RECOVERY_PROJECT_ID }}
+      RECOVERY_REGION: ${{ vars.GCP_RECOVERY_REGION }}
+      RECOVERY_ZONE: ${{ vars.GCP_RECOVERY_ZONE }}
+      RECOVERY_DATA_BUCKET: ${{ vars.GCP_RECOVERY_DATA_BUCKET }}
+      RECOVERY_BACKUP_BUCKET: ${{ vars.GCP_RECOVERY_BACKUP_BUCKET }}
+      RECOVERY_STATE_BUCKET: ${{ vars.GCP_RECOVERY_STATE_BUCKET }}
+      RECOVERY_WIF_PROVIDER: ${{ vars.GCP_RECOVERY_WIF_PROVIDER }}
+      RECOVERY_SERVICE_ACCOUNT: ${{ vars.GCP_RECOVERY_SERVICE_ACCOUNT }}
+      RECOVERY_IMAGE: ${{ vars.GCP_RECOVERY_IMAGE }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825a76410c181273ba90b1 # v7.0.1
+
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: "0.12.5"
+
+      - name: Validate recovery configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(
+            RECOVERY_PROJECT_ID RECOVERY_REGION RECOVERY_ZONE
+            RECOVERY_DATA_BUCKET RECOVERY_BACKUP_BUCKET RECOVERY_STATE_BUCKET
+            RECOVERY_WIF_PROVIDER RECOVERY_SERVICE_ACCOUNT RECOVERY_IMAGE
+          )
+          for name in "${required[@]}"; do
+            [[ -n "${!name:-}" ]] || { echo "missing GitHub environment variable: $name" >&2; exit 1; }
+          done
+          [[ "$RECOVERY_PROJECT_ID" == *-stage ]] || {
+            echo "quarterly automation is restricted to a -stage project" >&2
+            exit 1
+          }
+
+      - name: Authenticate as the staging recovery identity
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          project_id: ${{ env.RECOVERY_PROJECT_ID }}
+          workload_identity_provider: ${{ env.RECOVERY_WIF_PROVIDER }}
+          service_account: ${{ env.RECOVERY_SERVICE_ACCOUNT }}
+
+      - name: Install Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+        with:
+          version: ">= 540.0.0"
+
+      - name: Run isolated restore exercises
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run python scripts/gcp-recovery-drill.py run \
+            --project "$RECOVERY_PROJECT_ID" \
+            --region "$RECOVERY_REGION" \
+            --zone "$RECOVERY_ZONE" \
+            --data-bucket "$RECOVERY_DATA_BUCKET" \
+            --backup-bucket "$RECOVERY_BACKUP_BUCKET" \
+            --state-bucket "$RECOVERY_STATE_BUCKET" \
+            --state-prefix environments/stage \
+            --image "$RECOVERY_IMAGE:${GITHUB_SHA}" \
+            --operator "github:${GITHUB_ACTOR}" \
+            --ticket "quarterly-${GITHUB_RUN_ID}" \
+            --confirm-project "$RECOVERY_PROJECT_ID"
+
+      - name: Upload local evidence copy
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: recovery-evidence-${{ github.run_id }}
+          path: recovery-evidence/*.json
+          if-no-files-found: error
+          retention-days: 90
