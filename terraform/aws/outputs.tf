@@ -122,7 +122,7 @@ output "airflow_secrets_backend" {
 
 output "notebook_efs" {
   description = "Shared notebook EFS details. Null when enable_notebook_efs is false."
-  value = var.enable_notebook_efs ? {
+  value       = var.enable_notebook_efs ? {
     managed_by_this_stack          = local.create_notebook_efs
     file_system_id                 = local.notebook_efs_id
     access_point_id                = local.notebook_efs_access_point_id
