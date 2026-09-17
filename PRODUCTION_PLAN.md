@@ -311,7 +311,7 @@ Exit gate:
 
 Goal: make environment creation repeatable and safe.
 
-Implementation status (2026-09-16): P1.1 through P1.3 are implemented and
+Implementation status (2026-09-16): P1.1 through P1.4 are implemented and
 locally validated. The protected state bucket and live roots still require
 authorized, reviewed applies in their selected GCP projects.
 
@@ -327,10 +327,15 @@ authorized, reviewed applies in their selected GCP projects.
   root now owns a custom-mode VPC with a fixed non-overlapping CIDR, private-only
   compute NICs, flow/NAT/firewall logging, private service peering, environment-local
   DNS, OS Login metadata, and a tested IAP SSH exception.
-- **P1.4 Complete workload identity.** Separate deployer, control, job, feed, notebook,
+- **P1.4 Complete workload identity — complete locally.** Separate deployer, control, job, feed, notebook,
   and CI identities. Add GitHub OIDC federation bound to the exact repository and
   protected environment, plus IAM policy tests. Remove reliance on default service
-  accounts.
+  accounts. Every environment now has six explicit user-managed identities; GitHub
+  trust requires matching repository name, immutable repository/owner IDs, protected
+  environment, and main ref. Runtime and CI permissions are resource-scoped where
+  supported; named human operators receive only conditional IAP SSH, OS Login,
+  instance power, and the three required VM actAs grants. Native positive/negative
+  IAM tests run in CI.
 - **P1.5 Add project guardrails.** Enable required APIs, labels, audit logs, budgets,
   quota alerts, and environment-specific deletion protection. Record which
   organization policies are required versus optional.

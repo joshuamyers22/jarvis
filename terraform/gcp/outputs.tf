@@ -44,6 +44,70 @@ output "identities" {
   value = { for k, v in google_service_account.roles : k => v.email }
 }
 
+output "github_oidc" {
+  value = {
+    workload_identity_provider = google_iam_workload_identity_pool_provider.github.name
+    ci_service_account         = google_service_account.roles["ci"].email
+    repository                 = var.github_repository
+    repository_id              = var.github_repository_id
+    repository_owner_id        = var.github_repository_owner_id
+    environment                = var.github_environment
+    ref                        = var.github_ref
+    attribute_condition        = google_iam_workload_identity_pool_provider.github.attribute_condition
+  }
+}
+
+output "iam_contract" {
+  value = {
+    deployer_project_roles = sort(tolist(local.deployer_project_roles))
+    deployer_principals    = sort(tolist(var.deployer_principals))
+    operator_principals    = sort(tolist(var.operator_principals))
+    operator_access = {
+      project_roles = sort([
+        google_project_iam_member.operator_os_login[sort(tolist(var.operator_principals))[0]].role,
+        google_project_iam_member.operator_iap_ssh[sort(tolist(var.operator_principals))[0]].role,
+        google_project_iam_custom_role.instance_power_operator.name,
+      ])
+      service_accounts = sort(tolist(local.ssh_service_accounts))
+      iap_condition    = google_project_iam_member.operator_iap_ssh[sort(tolist(var.operator_principals))[0]].condition[0].expression
+    }
+    runtime_project_roles = {
+      control  = [google_project_iam_member.control_sql_client.role]
+      job      = []
+      feed     = []
+      notebook = []
+      ci       = []
+    }
+    resource_roles = {
+      control = sort([
+        google_cloud_run_v2_job_iam_member.control_executor.role,
+        google_storage_bucket_iam_member.control_logs.role,
+        google_secret_manager_secret_iam_member.control_db_password.role,
+        google_artifact_registry_repository_iam_member.runtime_readers["control"].role,
+      ])
+      job = sort([
+        google_storage_bucket_iam_member.job_data.role,
+        google_artifact_registry_repository_iam_member.runtime_readers["job"].role,
+      ])
+      feed = sort([
+        google_storage_bucket_iam_member.feed_write.role,
+        google_artifact_registry_repository_iam_member.runtime_readers["feed"].role,
+      ])
+      notebook = sort([
+        google_storage_bucket_iam_member.notebook_read.role,
+        google_artifact_registry_repository_iam_member.runtime_readers["notebook"].role,
+      ])
+      ci = [google_artifact_registry_repository_iam_member.ci_writer.role]
+    }
+    workload_attachments = {
+      control  = google_compute_instance.control.service_account[0].email
+      feed     = google_compute_instance.feed.service_account[0].email
+      notebook = google_compute_instance.notebook.service_account[0].email
+      job      = google_cloud_run_v2_job.research.template[0].template[0].service_account
+    }
+  }
+}
+
 output "instances" {
   value = {
     control  = google_compute_instance.control.name

@@ -2,8 +2,13 @@ mock_provider "google" {}
 mock_provider "random" {}
 
 variables {
-  project_id  = "jarvis-research-stage"
-  bucket_name = "jarvis-research-stage-data"
+  project_id                 = "jarvis-research-stage"
+  bucket_name                = "jarvis-research-stage-data"
+  deployer_principals        = ["group:platform@example.com"]
+  operator_principals        = ["group:operators@example.com"]
+  github_repository          = "example/jarvis"
+  github_repository_id       = "123456789"
+  github_repository_owner_id = "987654321"
 }
 
 run "staging_boundary" {
@@ -76,6 +81,16 @@ run "staging_boundary" {
       "notebook.stage.jarvis.internal.",
     ])
     error_message = "Every private instance must receive an environment-local DNS record."
+  }
+
+  assert {
+    condition = (
+      output.github_oidc.repository_id == "123456789" &&
+      output.github_oidc.repository_owner_id == "987654321" &&
+      output.github_oidc.environment == "staging" &&
+      output.github_oidc.ref == "refs/heads/main"
+    )
+    error_message = "Staging federation must be bound to the exact repository, staging environment, and main branch."
   }
 }
 

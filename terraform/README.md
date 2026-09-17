@@ -34,6 +34,8 @@ For GCP, create the protected remote-state bucket with the standalone
 explicit [`live/gcp/{dev,stage,prod}`](live/gcp/README.md) roots. `terraform/gcp`
 is their reusable platform child module and `terraform/gcp/network` supplies the
 managed private-network boundary; neither child module should be applied directly.
+The platform module creates user-managed identities and GitHub federation; see
+the [GCP identity runbook](../docs/gcp-identity.md) for the one-time handoff.
 
 Each module produces the same outputs, which is where the abstraction does
 hold: `storage_uri`, `registry`, `batch_job_name`, `db_host`, and the identities

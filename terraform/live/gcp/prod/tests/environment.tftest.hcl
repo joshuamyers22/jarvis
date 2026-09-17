@@ -2,8 +2,13 @@ mock_provider "google" {}
 mock_provider "random" {}
 
 variables {
-  project_id  = "jarvis-research-prod"
-  bucket_name = "jarvis-research-prod-data"
+  project_id                 = "jarvis-research-prod"
+  bucket_name                = "jarvis-research-prod-data"
+  deployer_principals        = ["group:platform@example.com"]
+  operator_principals        = ["group:operators@example.com"]
+  github_repository          = "example/jarvis"
+  github_repository_id       = "123456789"
+  github_repository_owner_id = "987654321"
 }
 
 run "production_boundary" {
@@ -76,6 +81,16 @@ run "production_boundary" {
       "notebook.prod.jarvis.internal.",
     ])
     error_message = "Every private instance must receive an environment-local DNS record."
+  }
+
+  assert {
+    condition = (
+      output.github_oidc.repository_id == "123456789" &&
+      output.github_oidc.repository_owner_id == "987654321" &&
+      output.github_oidc.environment == "production" &&
+      output.github_oidc.ref == "refs/heads/main"
+    )
+    error_message = "Production federation must be bound to the exact repository, production environment, and main branch."
   }
 }
 

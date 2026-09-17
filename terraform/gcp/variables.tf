@@ -91,3 +91,86 @@ variable "log_delete_after_days" {
   type    = number
   default = 180
 }
+
+variable "deployer_principals" {
+  type        = set(string)
+  description = "Named users, groups, or service accounts allowed to impersonate the Terraform deployer."
+
+  validation {
+    condition = (
+      length(var.deployer_principals) > 0 &&
+      alltrue([
+        for principal in var.deployer_principals :
+        can(regex("^(user|group|serviceAccount):[^[:space:]]+$", principal))
+      ])
+    )
+    error_message = "deployer_principals must contain at least one user:, group:, or serviceAccount: IAM member."
+  }
+}
+
+variable "operator_principals" {
+  type        = set(string)
+  description = "Named users or groups allowed to start, stop, and access Jarvis VMs through IAP and OS Login."
+
+  validation {
+    condition = (
+      length(var.operator_principals) > 0 &&
+      alltrue([
+        for principal in var.operator_principals :
+        can(regex("^(user|group):[^[:space:]]+$", principal))
+      ])
+    )
+    error_message = "operator_principals must contain at least one named user: or group: IAM member."
+  }
+}
+
+variable "github_repository" {
+  type        = string
+  description = "Exact GitHub repository in owner/name form allowed to federate."
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", var.github_repository))
+    error_message = "github_repository must use owner/name form."
+  }
+}
+
+variable "github_repository_id" {
+  type        = string
+  description = "Immutable numeric GitHub repository ID allowed to federate."
+
+  validation {
+    condition     = can(regex("^[0-9]+$", var.github_repository_id))
+    error_message = "github_repository_id must be a numeric GitHub repository ID."
+  }
+}
+
+variable "github_repository_owner_id" {
+  type        = string
+  description = "Immutable numeric GitHub owner or organization ID allowed to federate."
+
+  validation {
+    condition     = can(regex("^[0-9]+$", var.github_repository_owner_id))
+    error_message = "github_repository_owner_id must be a numeric GitHub owner ID."
+  }
+}
+
+variable "github_environment" {
+  type        = string
+  description = "Protected GitHub environment required in the OIDC token."
+
+  validation {
+    condition     = contains(["development", "staging", "production"], var.github_environment)
+    error_message = "github_environment must be development, staging, or production."
+  }
+}
+
+variable "github_ref" {
+  type        = string
+  description = "Exact Git ref required in the GitHub OIDC token."
+  default     = "refs/heads/main"
+
+  validation {
+    condition     = startswith(var.github_ref, "refs/heads/") || startswith(var.github_ref, "refs/tags/")
+    error_message = "github_ref must be a full refs/heads/* or refs/tags/* ref."
+  }
+}

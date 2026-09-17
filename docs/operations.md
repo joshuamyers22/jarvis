@@ -18,6 +18,12 @@ files. Store only credential references or impersonation targets there; use
 short-lived Application Default Credentials or workload identity rather than
 embedding cloud keys.
 
+The first live-root apply creates its deployer identity. Complete the documented
+[GCP identity handoff](gcp-identity.md#initial-identity-handoff), grant that
+deployer access to the remote-state bucket through the bootstrap stack, and use
+impersonation for every later plan and apply. GitHub publishing uses the separate
+CI identity and repository/environment/ref-bound OIDC federation.
+
 ```bash
 scripts/gcp-live.sh dev validate
 scripts/gcp-live.sh dev plan
@@ -56,7 +62,9 @@ gcloud compute ssh research-dev-notebook --project PROJECT_ID --zone us-central1
 ```
 
 GCP SSH is accepted only from IAP's TCP-forwarding range. Keep the tunnel flag;
-do not add an external IP or broader firewall rule for administration.
+do not add an external IP or broader firewall rule for administration. Only the
+named `operator_principals` receive OS Login, port-22 IAP access, instance
+start/stop, and actAs on the three VM service accounts.
 
 ## Routine checks
 

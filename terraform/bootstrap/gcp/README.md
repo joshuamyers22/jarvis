@@ -72,7 +72,9 @@ environments/prod
 
 Grant each environment deployer `roles/storage.objectAdmin` on this bucket only.
 Bucket administrators retain `roles/storage.admin` on the bucket, not the
-project. IAM changes may take several minutes to become effective.
+project. Add deployers to `state_writer_principals` only after their live root
+has created them, following the [identity handoff](../../../docs/gcp-identity.md).
+IAM changes may take several minutes to become effective.
 
 ## Retention and recovery
 

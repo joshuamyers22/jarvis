@@ -38,6 +38,14 @@ output "identities" {
   value = module.platform.identities
 }
 
+output "github_oidc" {
+  value = module.platform.github_oidc
+}
+
+output "iam_contract" {
+  value = module.platform.iam_contract
+}
+
 output "instances" {
   value = module.platform.instances
 }

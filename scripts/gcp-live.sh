@@ -58,6 +58,11 @@ required=(
   JARVIS_TFSTATE_BUCKET
   TF_VAR_project_id
   TF_VAR_bucket_name
+  TF_VAR_deployer_principals
+  TF_VAR_operator_principals
+  TF_VAR_github_repository
+  TF_VAR_github_repository_id
+  TF_VAR_github_repository_owner_id
 )
 for name in "${required[@]}"; do
   value=${!name:-}

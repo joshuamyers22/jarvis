@@ -49,21 +49,28 @@ module "network" {
 module "platform" {
   source = "../../../gcp"
 
-  env                     = local.environment
-  project_id              = var.project_id
-  region                  = var.region
-  zone                    = var.zone
-  bucket_name             = var.bucket_name
-  network_self_link       = module.network.network_self_link
-  subnetwork_self_link    = module.network.subnetwork_self_link
-  db_tier                 = var.db_tier
-  db_availability_type    = "ZONAL"
-  db_deletion_protection  = false
-  control_machine_type    = var.control_machine_type
-  feed_machine_type       = var.feed_machine_type
-  notebook_machine_type   = var.notebook_machine_type
-  raw_coldline_after_days = 30
-  log_delete_after_days   = 30
+  env                        = local.environment
+  project_id                 = var.project_id
+  region                     = var.region
+  zone                       = var.zone
+  bucket_name                = var.bucket_name
+  deployer_principals        = var.deployer_principals
+  operator_principals        = var.operator_principals
+  github_repository          = var.github_repository
+  github_repository_id       = var.github_repository_id
+  github_repository_owner_id = var.github_repository_owner_id
+  github_environment         = "development"
+  github_ref                 = "refs/heads/main"
+  network_self_link          = module.network.network_self_link
+  subnetwork_self_link       = module.network.subnetwork_self_link
+  db_tier                    = var.db_tier
+  db_availability_type       = "ZONAL"
+  db_deletion_protection     = false
+  control_machine_type       = var.control_machine_type
+  feed_machine_type          = var.feed_machine_type
+  notebook_machine_type      = var.notebook_machine_type
+  raw_coldline_after_days    = 30
+  log_delete_after_days      = 30
 
   depends_on = [module.network]
 }

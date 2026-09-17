@@ -26,6 +26,31 @@ variable "bucket_name" {
   description = "Globally unique production data bucket name."
 }
 
+variable "deployer_principals" {
+  type        = set(string)
+  description = "Named principals allowed to impersonate the production Terraform deployer."
+}
+
+variable "operator_principals" {
+  type        = set(string)
+  description = "Named users or groups allowed to operate production VMs through IAP and OS Login."
+}
+
+variable "github_repository" {
+  type        = string
+  description = "Exact GitHub repository in owner/name form."
+}
+
+variable "github_repository_id" {
+  type        = string
+  description = "Immutable numeric GitHub repository ID."
+}
+
+variable "github_repository_owner_id" {
+  type        = string
+  description = "Immutable numeric GitHub owner ID."
+}
+
 variable "db_tier" {
   type    = string
   default = "db-custom-2-7680"

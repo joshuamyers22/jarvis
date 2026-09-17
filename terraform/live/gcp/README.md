@@ -17,6 +17,12 @@ subnet, Private Google Access, Cloud NAT, private services allocation, private
 DNS zone, flow logs, default-deny ingress rule, and IAP-only SSH rule. Instances
 have no external-IP configuration and block project-wide SSH keys.
 
+Each root also owns separate deployer, CI, control, job, feed, and notebook
+service accounts. GitHub federation is restricted to the configured immutable
+repository/owner IDs, the root's protected GitHub environment, and `main`.
+Follow the [identity handoff and GitHub setup](../../../docs/gcp-identity.md)
+before switching the env file to deployer impersonation.
+
 ## Configure an environment
 
 P1.1 must be applied first so `JARVIS_TFSTATE_BUCKET` exists and the deployer
@@ -29,8 +35,9 @@ chmod 600 terraform/live/gcp/dev/.env.live
 ```
 
 Repeat for `stage` and `prod` only when those environments are ready. Env files
-contain Terraform inputs and credential references. Prefer ADC plus short-lived
-service-account impersonation; never paste credential JSON into them.
+contain Terraform inputs, named deployer/operator principals, immutable GitHub
+IDs, and credential references. Prefer ADC plus short-lived service-account
+impersonation; never paste credential JSON or a GitHub token into them.
 
 ## Plan and apply
 
