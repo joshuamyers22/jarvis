@@ -330,10 +330,10 @@ authorized, reviewed applies in their selected GCP projects.
 - **P1.4 Complete workload identity — complete locally.** Separate deployer, control, job, feed, notebook,
   and CI identities. Add GitHub OIDC federation bound to the exact repository and
   protected environment, plus IAM policy tests. Remove reliance on default service
-  accounts. Every environment now has six explicit user-managed identities; GitHub
+  accounts. Every environment now has seven explicit user-managed identities; GitHub
   trust requires matching repository name, immutable repository/owner IDs, protected
   environment, and main ref. Runtime and CI permissions are resource-scoped where
-  supported; named human operators receive only conditional IAP SSH, OS Login,
+  supported; named human operators receive only conditional IAP SSH, OS Admin Login,
   instance power, and the three required VM actAs grants. Native positive/negative
   IAM tests run in CI.
 - **P1.5 Add project guardrails — complete locally.** Enable required APIs,
@@ -439,9 +439,9 @@ Exit gate:
 
 Goal: turn the current SSH/Compose scaffold into a repeatable service deployment.
 
-Implementation status (2026-09-17): P3.1 is implemented and locally validated.
-The first live image build and role replacement remain environment evidence;
-P3.2 through P3.6 are not yet complete.
+Implementation status (2026-09-17): P3.1 and P3.2 are implemented and locally
+validated. Live image replacement, reboot recovery, and container-crash drills
+remain environment evidence; P3.3 through P3.6 are not yet complete.
 
 - **P3.1 Replace mutable VM bootstrap — complete locally.** A pinned Packer build
   now creates a private, Shielded Debian 12 image with exact Docker/Compose and
@@ -455,9 +455,17 @@ P3.2 through P3.6 are not yet complete.
   contract. The first environment build and replacement still require live GCP
   evidence under the host-image runbook; Phase 4 will automate promotion and
   provenance.
-- **P3.2 Add service supervision.** Install systemd units for control, feed, and
-  notebook Compose projects so services start after reboot, have bounded restart
-  behavior, and expose machine-readable health.
+- **P3.2 Add service supervision — complete locally.** The host image now installs
+  a hardened systemd template and role-aware supervisor for control, feed, and
+  notebook Compose projects. GCP deploys enable/restart the unit and block on JSON
+  health; boot activation, consecutive health-failure detection, and systemd's
+  three-start/five-minute rate limit replace unbounded Compose restart policies.
+  The helper validates private env-file modes, notebook mounts, container state,
+  and health checks, while Artifact Registry authentication uses only an attached
+  identity and a per-role ephemeral `/run` credential. GCP-only Compose overrides
+  preserve the existing AWS/Azure recovery policy. Tests enforce the lifecycle-owner,
+  IAM, activation, and health contract. Live reboot and crash-drill evidence is
+  still required under the service-supervision runbook.
 - **P3.3 Add database migration workflow.** Run Airflow database migrations as an
   explicit, single-owner release step with compatibility checks and a rollback plan.
 - **P3.4 Make deploys transactional.** Extend `ctl` with `plan`, `status`, `doctor`,

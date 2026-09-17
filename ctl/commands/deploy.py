@@ -4,8 +4,9 @@ The single most important property: one SHA is written to one place, and every
 role reads it from there. Image drift between the scheduler, the feed and the
 batch runner produces failures that look exactly like data bugs.
 
-Provider differences are confined to ``_update_batch_image`` -- everything above
-it is the same configuration sync and compose restart on all three clouds.
+Provider differences are confined to service activation and ``_update_batch_image``:
+GCP hands lifecycle ownership to systemd, while AWS and Azure retain direct
+Compose activation.
 """
 
 from __future__ import annotations
@@ -28,6 +29,20 @@ from ctl.commands._util import (
 )
 
 ROLES = ("control", "feed", "notebook")
+
+
+def _activate_gcp_service(host: str, role: str) -> None:
+    """Enable, restart, and health-gate one baked systemd supervisor."""
+    unit = f"jarvis-compose@{role}.service"
+    sh(["ssh", host, f"sudo systemctl enable {unit}"])
+    sh(["ssh", host, f"sudo systemctl restart {unit}"])
+    sh(
+        [
+            "ssh",
+            host,
+            f"sudo /usr/local/sbin/jarvis-compose wait {role} 300",
+        ]
+    )
 
 
 def _compose_files(
@@ -176,7 +191,24 @@ def deploy(
             remote_dir = f"/opt/research/{name}"
             eprint(f"--- deploying {name} @ {host}")
 
-            sh(["ssh", host, f"mkdir -p {remote_dir}"])
+            if cloud == "gcp":
+                # GCP's systemd supervisor runs as root. Operators have the
+                # equivalent host authority already because managing Docker is
+                # root-equivalent, so make that boundary explicit through
+                # OS Admin Login and keep deployed files owned by the actor.
+                sh(
+                    [
+                        "ssh",
+                        host,
+                        (
+                            f'sudo install -d -m 0750 -o "$(id -un)" '
+                            f'-g "$(id -gn)" {remote_dir} && '
+                            f'sudo chown -R "$(id -un):$(id -gn)" {remote_dir}'
+                        ),
+                    ]
+                )
+            else:
+                sh(["ssh", host, f"mkdir -p {remote_dir}"])
             sh(
                 [
                     "rsync",
@@ -201,30 +233,33 @@ def deploy(
                 ]
             )
 
-            compose_files = _compose_files(name, env, remote_dir, host)
-            compose_flags = " ".join(f"-f {shlex.quote(path)}" for path in compose_files)
-            env_flags = f"--env-file {remote_dir}/runtime.env --env-file {remote_dir}/.env.tag"
-            compose_cmd = (
-                "compose() { if docker compose version >/dev/null 2>&1; "
-                'then docker compose "$@"; else docker-compose "$@"; fi; }; compose'
-            )
-            sh(
-                [
-                    "ssh",
-                    host,
-                    f"cd {remote_dir} && {compose_cmd} {env_flags} {compose_flags} pull",
-                ]
-            )
-            sh(
-                [
-                    "ssh",
-                    host,
-                    (
-                        f"cd {remote_dir} && {compose_cmd} {env_flags} "
-                        f"{compose_flags} up -d --remove-orphans"
-                    ),
-                ]
-            )
+            if cloud == "gcp":
+                _activate_gcp_service(host, name)
+            else:
+                compose_files = _compose_files(name, env, remote_dir, host)
+                compose_flags = " ".join(f"-f {shlex.quote(path)}" for path in compose_files)
+                env_flags = f"--env-file {remote_dir}/runtime.env --env-file {remote_dir}/.env.tag"
+                compose_cmd = (
+                    "compose() { if docker compose version >/dev/null 2>&1; "
+                    'then docker compose "$@"; else docker-compose "$@"; fi; }; compose'
+                )
+                sh(
+                    [
+                        "ssh",
+                        host,
+                        f"cd {remote_dir} && {compose_cmd} {env_flags} {compose_flags} pull",
+                    ]
+                )
+                sh(
+                    [
+                        "ssh",
+                        host,
+                        (
+                            f"cd {remote_dir} && {compose_cmd} {env_flags} "
+                            f"{compose_flags} up -d --remove-orphans"
+                        ),
+                    ]
+                )
             eprint(f"    {name} is on {resolved}")
 
     if update_batch and ("control" in targets or role == "all"):

@@ -18,6 +18,10 @@ output "host_image_contract" {
   value = module.platform.host_image_contract
 }
 
+output "service_supervision_contract" {
+  value = module.platform.service_supervision_contract
+}
+
 output "storage_uri" {
   value = module.platform.storage_uri
 }

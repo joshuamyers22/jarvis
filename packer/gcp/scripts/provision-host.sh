@@ -66,6 +66,9 @@ printf '%s  %s\n' "$OPS_AGENT_INSTALLER_SHA256" "$installer" | sha256sum --check
 bash "$installer" --also-install --version="$OPS_AGENT_VERSION"
 
 install -d -m 0755 /opt/research
+install -m 0755 /tmp/jarvis-compose /usr/local/sbin/jarvis-compose
+install -m 0644 /tmp/jarvis-compose@.service /etc/systemd/system/jarvis-compose@.service
+systemctl daemon-reload
 install -d -m 0755 /etc/docker
 cat >/etc/docker/daemon.json <<'EOF'
 {

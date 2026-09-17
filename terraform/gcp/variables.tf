@@ -496,7 +496,7 @@ variable "deployer_principals" {
 
 variable "operator_principals" {
   type        = set(string)
-  description = "Named users or groups allowed to start, stop, and access Jarvis VMs through IAP and OS Login."
+  description = "Named users or groups allowed to start, stop, and administer Jarvis VMs through IAP and OS Admin Login."
 
   validation {
     condition = (

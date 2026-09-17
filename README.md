@@ -98,6 +98,7 @@ docs/             setup, design, notebook, and operations guides
 - [Recovery drills](docs/recovery-drills.md)
 - [Supported build environment](docs/build-environment.md)
 - [GCP host-image build and replacement](docs/host-images.md)
+- [GCP service supervision and recovery drills](docs/service-supervision.md)
 - [Production boundary decision](docs/adr/0001-production-boundaries.md)
 - [Production functionality plan](PRODUCTION_PLAN.md)
 - [Terraform provider guide](terraform/README.md)

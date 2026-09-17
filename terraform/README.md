@@ -51,6 +51,8 @@ declared through the reviewed, resource-scoped contract in the
 The control, feed, and notebook instances accept only exact versioned GCE image
 references; build and replace them with the
 [GCP host-image runbook](../docs/host-images.md).
+Those images include the bounded systemd/Compose lifecycle described in the
+[service-supervision runbook](../docs/service-supervision.md).
 
 Each module produces the same outputs, which is where the abstraction does
 hold: `storage_uri`, `storage_locations`, `storage_contract`,

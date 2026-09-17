@@ -20,6 +20,9 @@ have no external-IP configuration and block project-wide SSH keys.
 They boot from exact `host_images` references and contain no package-installing
 startup script. Build and replace those images through the
 [host-image runbook](../../../docs/host-images.md).
+The first `ctl deploy` enables the baked `jarvis-compose@ROLE` systemd unit;
+boot recovery, bounded restarts, JSON health, and failure drills are documented
+in the [service-supervision runbook](../../../docs/service-supervision.md).
 
 Each root also owns separate deployer, CI, control, job, feed, and notebook
 service accounts. GitHub federation is restricted to the configured immutable

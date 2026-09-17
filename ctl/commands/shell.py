@@ -4,7 +4,14 @@ from __future__ import annotations
 
 import typer
 
-from ctl.commands._util import ENV_FILE, load_env, resolve_tag, sh, ssh_target
+from ctl.commands._util import (
+    ENV_FILE,
+    detect_cloud,
+    load_env,
+    resolve_tag,
+    sh,
+    ssh_target,
+)
 
 
 def shell(
@@ -37,9 +44,12 @@ def shell(
     host = ssh_target(env, role)
     remote_dir = f"/opt/research/{role}"
     compose = f"{remote_dir}/compose/{role}.yml"
+    gcp = detect_cloud(env) == "gcp"
+    sudo = "sudo " if gcp else ""
+    project = f"--project-name jarvis-{role} " if gcp else ""
     compose_cmd = (
-        "compose() { if docker compose version >/dev/null 2>&1; "
-        'then docker compose "$@"; else docker-compose "$@"; fi; }; compose'
+        f"compose() {{ if {sudo}docker compose version >/dev/null 2>&1; "
+        f'then {sudo}docker compose "$@"; else {sudo}docker-compose "$@"; fi; }}; compose'
     )
 
     sh(
@@ -47,7 +57,7 @@ def shell(
             "ssh",
             "-t",
             host,
-            f"cd {remote_dir} && {compose_cmd} --env-file {remote_dir}/runtime.env "
+            f"cd {remote_dir} && {compose_cmd} {project}--env-file {remote_dir}/runtime.env "
             f"--env-file {remote_dir}/.env.tag -f {compose} exec {target} bash",
         ],
         check=False,

@@ -1,0 +1,266 @@
+#!/usr/bin/env bash
+# Supervise one Jarvis Compose role. Installed at /usr/local/sbin/jarvis-compose.
+set -euo pipefail
+
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+root=${JARVIS_ROOT:-/opt/research}
+health_interval=${JARVIS_HEALTH_INTERVAL_SECONDS:-30}
+health_failures_allowed=${JARVIS_HEALTH_FAILURES_ALLOWED:-2}
+start_timeout=${JARVIS_START_TIMEOUT_SECONDS:-180}
+
+usage() {
+  echo "usage: jarvis-compose <validate|supervise|stop|health|wait> <control|feed|notebook> [wait-seconds]" >&2
+  exit 2
+}
+
+[[ $# -ge 2 && $# -le 3 ]] || usage
+action=$1
+role=$2
+case "$action" in
+  validate | supervise | stop | health | wait) ;;
+  *) usage ;;
+esac
+case "$role" in
+  control | feed | notebook) ;;
+  *)
+    echo "unsupported Jarvis role: $role" >&2
+    exit 2
+    ;;
+esac
+
+role_dir="${root}/${role}"
+runtime_env="${role_dir}/runtime.env"
+tag_env="${role_dir}/.env.tag"
+compose_file="${role_dir}/compose/${role}.yml"
+systemd_compose_file="${role_dir}/compose/${role}.systemd.yml"
+docker_config="/run/jarvis-${role}/docker"
+export DOCKER_CONFIG="$docker_config"
+
+json_health() {
+  local healthy=$1
+  local error=$2
+  local services=$3
+  if [[ "$healthy" == "true" ]]; then
+    printf '{"schema_version":1,"role":"%s","healthy":true,"services":[%s]}\n' "$role" "$services"
+  else
+    printf '{"schema_version":1,"role":"%s","healthy":false,"error":"%s","services":[%s]}\n' "$role" "$error" "$services"
+  fi
+}
+
+validate_layout() {
+  local path mode
+  for path in "$runtime_env" "$tag_env" "$compose_file" "$systemd_compose_file"; do
+    [[ -f "$path" ]] || {
+      echo "missing required service file: $path" >&2
+      return 1
+    }
+  done
+
+  for path in "$runtime_env" "$tag_env"; do
+    mode=$(stat -c '%a' "$path")
+    (( (8#$mode & 077) == 0 )) || {
+      echo "service environment file must not be group/world accessible: $path" >&2
+      return 1
+    }
+  done
+}
+
+notebook_host_path() {
+  local key value
+  while IFS='=' read -r key value; do
+    if [[ "$key" == "NOTEBOOKS_HOST_PATH" ]]; then
+      printf '%s' "$value"
+      return 0
+    fi
+  done <"$runtime_env"
+}
+
+env_value() {
+  local wanted=$1
+  local key value
+  while IFS='=' read -r key value; do
+    if [[ "$key" == "$wanted" ]]; then
+      printf '%s' "$value"
+      return 0
+    fi
+  done <"$runtime_env"
+}
+
+registry_login() {
+  local image registry response token
+  image=$(env_value IMAGE)
+  registry=${image%%/*}
+  case "$registry" in
+    gcr.io | *.gcr.io | *.pkg.dev) ;;
+    *) return 0 ;;
+  esac
+
+  response=$(curl --fail --silent --show-error \
+    --connect-timeout 2 \
+    --max-time 10 \
+    --header 'Metadata-Flavor: Google' \
+    'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token')
+  token=$(sed -nE 's/.*"access_token"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' <<<"$response")
+  [[ -n "$token" ]] || {
+    echo "metadata server returned no access token" >&2
+    return 1
+  }
+  install -d -m 0700 "$docker_config"
+  printf '%s' "$token" | docker login --username oauth2accesstoken --password-stdin "$registry" >/dev/null
+  unset token response
+}
+
+compose() {
+  local -a args
+  args=(
+    docker compose
+    --project-name "jarvis-${role}"
+    --env-file "$runtime_env"
+    --env-file "$tag_env"
+    -f "$compose_file"
+    -f "$systemd_compose_file"
+  )
+
+  if [[ "$role" == "notebook" ]]; then
+    local host_path
+    host_path=$(notebook_host_path)
+    if [[ -n "$host_path" ]]; then
+      [[ "$host_path" == /* ]] || {
+        echo "NOTEBOOKS_HOST_PATH must be absolute" >&2
+        return 1
+      }
+      [[ -d "$host_path" ]] && mountpoint -q -- "$host_path" || {
+        echo "notebook storage is not a mounted directory: $host_path" >&2
+        return 1
+      }
+      args+=(-f "${role_dir}/compose/notebook.efs.yml")
+    fi
+  fi
+
+  if [[ -n "${compose_timeout:-}" ]]; then
+    timeout --foreground --kill-after=15s "$compose_timeout" "${args[@]}" "$@"
+  else
+    "${args[@]}" "$@"
+  fi
+}
+
+health() {
+  local quiet=${1:-false}
+  local healthy=true
+  local error=""
+  local services_json=""
+  local service cid state container_health service_healthy
+  local services_output
+  local -a services
+
+  if ! validate_layout >/dev/null 2>&1; then
+    [[ "$quiet" == "true" ]] || json_health false configuration-invalid ""
+    return 1
+  fi
+  if ! services_output=$(compose config --services 2>/dev/null); then
+    [[ "$quiet" == "true" ]] || json_health false compose-config-invalid ""
+    return 1
+  fi
+  if [[ -z "$services_output" ]]; then
+    [[ "$quiet" == "true" ]] || json_health false no-services ""
+    return 1
+  fi
+  mapfile -t services <<<"$services_output"
+
+  for service in "${services[@]}"; do
+    cid=$(compose ps --all -q "$service" 2>/dev/null || true)
+    state=missing
+    container_health=none
+    service_healthy=false
+    if [[ -n "$cid" && "$cid" != *$'\n'* ]]; then
+      state=$(docker inspect --format '{{.State.Status}}' "$cid" 2>/dev/null || printf unknown)
+      container_health=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$cid" 2>/dev/null || printf unknown)
+      if [[ "$state" == "running" && ( "$container_health" == "healthy" || "$container_health" == "none" ) ]]; then
+        service_healthy=true
+      fi
+    fi
+    if [[ "$service_healthy" != "true" ]]; then
+      healthy=false
+      error=service-unhealthy
+    fi
+    [[ -z "$services_json" ]] || services_json+=,
+    services_json+=$(printf '{"name":"%s","state":"%s","health":"%s","healthy":%s}' \
+      "$service" "$state" "$container_health" "$service_healthy")
+  done
+
+  [[ "$quiet" == "true" ]] || json_health "$healthy" "$error" "$services_json"
+  [[ "$healthy" == "true" ]]
+}
+
+start_project() {
+  local deadline remaining
+  validate_layout
+  compose config --quiet
+  registry_login
+  deadline=$((SECONDS + start_timeout))
+  compose_timeout="${start_timeout}s" compose pull
+  remaining=$((deadline - SECONDS))
+  (( remaining > 0 )) || {
+    echo "service start budget exhausted while pulling images" >&2
+    return 1
+  }
+  compose_timeout="${remaining}s" compose up -d --remove-orphans --wait --wait-timeout "$remaining"
+}
+
+stop_project() {
+  local -a containers
+  mapfile -t containers < <(
+    docker ps \
+      --filter "label=com.docker.compose.project=jarvis-${role}" \
+      --quiet
+  )
+  if (( ${#containers[@]} > 0 )); then
+    docker stop --timeout 30 "${containers[@]}"
+  fi
+}
+
+case "$action" in
+  validate)
+    validate_layout
+    compose config --quiet
+    ;;
+  stop)
+    stop_project
+    ;;
+  health)
+    health false
+    ;;
+  wait)
+    wait_seconds=${3:-300}
+    [[ "$wait_seconds" =~ ^[1-9][0-9]*$ ]] || usage
+    deadline=$((SECONDS + wait_seconds))
+    until health true; do
+      if (( SECONDS >= deadline )); then
+        health false || true
+        exit 1
+      fi
+      sleep 5
+    done
+    health false
+    ;;
+  supervise)
+    start_project
+    trap 'exit 0' INT TERM
+    failures=0
+    while true; do
+      sleep "$health_interval" &
+      wait $! || exit 0
+      if health true; then
+        failures=0
+      else
+        failures=$((failures + 1))
+        logger -t "jarvis-compose-${role}" "health check failed (${failures}/${health_failures_allowed})"
+        if (( failures >= health_failures_allowed )); then
+          health false || true
+          exit 1
+        fi
+      fi
+    done
+    ;;
+esac

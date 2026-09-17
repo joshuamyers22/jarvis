@@ -1,0 +1,4 @@
+# GCP only: systemd owns recovery and enforces the project restart budget.
+services:
+  jupyter:
+    restart: "no"

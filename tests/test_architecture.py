@@ -53,6 +53,38 @@ def test_gcp_host_builder_stays_private_and_pinned() -> None:
     assert "docker_repo_key_sha256" in source
     assert "ops_agent_installer_sha256" in source
     assert "rsync_version" in source
+    assert 'source      = "${path.root}/files/jarvis-compose"' in source
+    assert 'source      = "${path.root}/files/jarvis-compose@.service"' in source
+
+
+def test_gcp_systemd_is_the_bounded_compose_lifecycle_owner() -> None:
+    unit = Path("packer/gcp/files/jarvis-compose@.service").read_text()
+    supervisor = Path("packer/gcp/files/jarvis-compose").read_text()
+    base_compose = "\n".join(
+        Path(f"compose/{role}.yml").read_text() for role in ("control", "feed", "notebook")
+    )
+    systemd_compose = "\n".join(
+        Path(f"compose/{role}.systemd.yml").read_text() for role in ("control", "feed", "notebook")
+    )
+
+    assert "WantedBy=multi-user.target" in unit
+    assert "Restart=on-failure" in unit
+    assert "StartLimitIntervalSec=300" in unit
+    assert "StartLimitBurst=3" in unit
+    assert "PartOf=docker.service" in unit
+    assert "ExecStart=/usr/local/sbin/jarvis-compose supervise %i" in unit
+    assert "RuntimeDirectory=jarvis-%i" in unit
+    assert "NoNewPrivileges=true" in unit
+    assert "health()" in supervisor
+    assert 'json_health "$healthy"' in supervisor
+    assert "metadata.google.internal" in supervisor
+    assert "--connect-timeout 2" in supervisor
+    assert "timeout --foreground" in supervisor
+    assert 'label=com.docker.compose.project=jarvis-${role}' in supervisor
+    assert "systemd_compose_file" in supervisor
+    assert "restart: always" in base_compose
+    assert base_compose.count("restart: unless-stopped") == 2
+    assert systemd_compose.count('restart: "no"') == 4
 
 
 def test_host_image_credentials_remain_in_ignored_env_file() -> None:

@@ -1,6 +1,6 @@
 # GCP identity and GitHub federation
 
-Jarvis uses six user-managed service accounts in every GCP environment. Compute
+Jarvis uses seven user-managed service accounts in every GCP environment. Compute
 Engine and Cloud Run workloads never use a Google-managed default service
 account, and no service-account key is created.
 
@@ -8,11 +8,12 @@ account, and no service-account key is created.
 |---|---|---|
 | `research-ENV-deployer` | Terraform plans and applies | Reviewed infrastructure-admin roles; may attach the four runtime identities |
 | `research-ENV-ci` | GitHub Actions image publishing | Artifact Registry writer on the `research` repository only |
+| `research-ENV-recovery` | Non-production recovery drills | Staging/dev recovery permissions; no production trust or grants |
 | `research-ENV-control` | Airflow scheduler and API | Execute the one Cloud Run job with per-task overrides, Cloud SQL client, log-object administration, its database secret, image pull |
 | `research-ENV-job` | Cloud Run batch execution | Data and scratch object administration; image pull |
 | `research-ENV-feed` | Append-only feed ingestion | Object creation and image pull; no read, overwrite, or delete |
 | `research-ENV-notebook` | Interactive research | Data-object read, scratch-object administration, and image pull |
-| Named operator users/groups | Human VM operations | OS Login, IAP tunnels restricted to port 22, instance start/stop, and actAs only on the three VM identities |
+| Named operator users/groups | Human VM operations | OS Admin Login, IAP tunnels restricted to port 22, instance start/stop, and actAs only on the three VM identities |
 
 Terraform's native policy tests assert the exact account set, workload
 attachments, project and resource roles, GitHub trust condition, and forbidden
@@ -51,7 +52,10 @@ not grant it to GitHub CI.
 
 Operator access is deliberately separate. Operators receive no Compute Admin
 role: a small project custom role permits only instance start/stop, while OS
-Login and a port-22 IAM condition constrain SSH through IAP. Because an SSH
+Admin Login and a port-22 IAM condition constrain SSH through IAP. Host-level
+administration is explicit because deploying or operating Docker is already
+root-equivalent; ordinary OS Login would make the supported systemd workflow
+inoperable without meaningfully reducing that authority. Because an SSH
 session can use the VM's metadata-server identity, OS Login also requires
 `roles/iam.serviceAccountUser` on the attached control, feed, and notebook
 accounts. Jarvis grants that role on those three accounts only. Google documents

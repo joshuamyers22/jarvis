@@ -6,6 +6,11 @@ source /etc/os-release
 test -r /etc/jarvis-host-image.json
 test -d /opt/research
 test "$(stat -c '%a' /opt/research)" = "755"
+test -x /usr/local/sbin/jarvis-compose
+test -r /etc/systemd/system/jarvis-compose@.service
+bash -n /usr/local/sbin/jarvis-compose
+systemd-analyze verify /etc/systemd/system/jarvis-compose@.service
+test "$(systemctl is-enabled jarvis-compose@control.service 2>/dev/null || true)" = "disabled"
 
 dpkg-query -W containerd.io docker-buildx-plugin docker-ce docker-ce-cli docker-compose-plugin google-cloud-ops-agent rsync >/dev/null
 test "$(dpkg-query -W -f='${Version}' containerd.io)" = "$CONTAINERD_VERSION"

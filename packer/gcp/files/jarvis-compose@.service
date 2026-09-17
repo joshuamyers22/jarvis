@@ -1,0 +1,38 @@
+[Unit]
+Description=Jarvis %i Compose project
+Requires=docker.service
+PartOf=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=3
+
+[Service]
+Type=simple
+Environment=JARVIS_HEALTH_INTERVAL_SECONDS=30
+Environment=JARVIS_HEALTH_FAILURES_ALLOWED=2
+Environment=JARVIS_START_TIMEOUT_SECONDS=300
+ExecStartPre=/usr/local/sbin/jarvis-compose validate %i
+ExecStart=/usr/local/sbin/jarvis-compose supervise %i
+ExecStop=/usr/local/sbin/jarvis-compose stop %i
+Restart=on-failure
+RestartSec=20s
+TimeoutStartSec=10min
+TimeoutStopSec=2min
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectSystem=strict
+RuntimeDirectory=jarvis-%i
+RuntimeDirectoryMode=0700
+ReadWritePaths=/run/jarvis-%i
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=jarvis-%i
+
+[Install]
+WantedBy=multi-user.target

@@ -15,6 +15,33 @@ def test_notebook_uses_local_compose_by_default() -> None:
     ]
 
 
+def test_gcp_service_activation_is_enabled_restarted_and_health_gated(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    calls: list[list[str]] = []
+    monkeypatch.setattr(deploy, "sh", lambda command: calls.append(command))
+
+    deploy._activate_gcp_service("operator@control", "control")
+
+    assert calls == [
+        [
+            "ssh",
+            "operator@control",
+            "sudo systemctl enable jarvis-compose@control.service",
+        ],
+        [
+            "ssh",
+            "operator@control",
+            "sudo systemctl restart jarvis-compose@control.service",
+        ],
+        [
+            "ssh",
+            "operator@control",
+            "sudo /usr/local/sbin/jarvis-compose wait control 300",
+        ],
+    ]
+
+
 def test_notebook_efs_requires_an_absolute_mount() -> None:
     with raises(typer.Exit):
         deploy._compose_files(

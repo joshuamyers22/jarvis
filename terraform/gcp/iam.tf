@@ -142,7 +142,7 @@ resource "google_service_account_iam_member" "deployer_impersonators" {
   member             = each.value
 }
 
-# --- operators: IAP/OS Login plus start/stop, without VM administration -----
+# --- operators: IAP/OS Admin Login plus start/stop, without Compute Admin ----
 resource "google_project_iam_custom_role" "instance_power_operator" {
   project     = var.project_id
   role_id     = "jarvisInstancePower"
@@ -167,7 +167,7 @@ resource "google_project_iam_member" "operator_os_login" {
   for_each = var.operator_principals
 
   project = var.project_id
-  role    = "roles/compute.osLogin"
+  role    = "roles/compute.osAdminLogin"
   member  = each.value
 }
 

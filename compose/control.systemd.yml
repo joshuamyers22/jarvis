@@ -1,0 +1,6 @@
+# GCP only: systemd owns recovery and enforces the project restart budget.
+services:
+  scheduler:
+    restart: "no"
+  api-server:
+    restart: "no"

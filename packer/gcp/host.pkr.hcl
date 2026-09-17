@@ -196,6 +196,16 @@ build {
   name    = "jarvis-gcp-host"
   sources = ["source.googlecompute.jarvis_host"]
 
+  provisioner "file" {
+    source      = "${path.root}/files/jarvis-compose"
+    destination = "/tmp/jarvis-compose"
+  }
+
+  provisioner "file" {
+    source      = "${path.root}/files/jarvis-compose@.service"
+    destination = "/tmp/jarvis-compose@.service"
+  }
+
   provisioner "shell" {
     environment_vars = [
       "BUILDX_VERSION=${var.buildx_version}",

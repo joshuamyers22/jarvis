@@ -63,7 +63,7 @@ variable "deployer_principals" {
 
 variable "operator_principals" {
   type        = set(string)
-  description = "Named users or groups allowed to operate staging VMs through IAP and OS Login."
+  description = "Named users or groups allowed to operate staging VMs through IAP and OS Admin Login."
 }
 
 variable "github_repository" {

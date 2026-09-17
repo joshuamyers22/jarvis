@@ -98,7 +98,7 @@ gcloud compute ssh research-dev-notebook --project PROJECT_ID --zone us-central1
 
 GCP SSH is accepted only from IAP's TCP-forwarding range. Keep the tunnel flag;
 do not add an external IP or broader firewall rule for administration. Only the
-named `operator_principals` receive OS Login, port-22 IAP access, instance
+named `operator_principals` receive OS Admin Login, port-22 IAP access, instance
 start/stop, and actAs on the three VM service accounts.
 
 ## Routine checks
@@ -112,6 +112,8 @@ start/stop, and actAs on the three VM service accounts.
   identify the affected environment, and record any approved budget or quota
   change in the infrastructure review.
 - Confirm every role uses the intended immutable image tag.
+- Confirm each GCP role's systemd unit and JSON health are healthy; follow the
+  [service-supervision runbook](service-supervision.md) for reboot and crash drills.
 
 Useful commands:
 

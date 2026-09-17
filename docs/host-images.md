@@ -5,6 +5,9 @@ Engine images. Runtime startup scripts do not install packages. The image
 contains Debian 12, exact Docker, Compose, rsync, and Google Cloud Ops Agent
 packages, baseline kernel and SSH policy, bounded Docker logs, and
 `/etc/jarvis-host-image.json` provenance.
+It also contains the systemd/Compose supervisor described in the
+[service-supervision runbook](service-supervision.md); the unit is enabled only
+when a role is first deployed.
 
 The Packer template pins Packer 1.16.x and googlecompute plugin 1.2.7. It also
 requires an exact Debian image name and exact package versions. The temporary

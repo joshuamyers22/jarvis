@@ -72,7 +72,7 @@ jobs:
       - run: packer init packer/gcp
       - run: packer fmt -check packer/gcp
       - run: packer validate -var-file=packer/gcp/ci.pkrvars.hcl packer/gcp
-      - run: bash -n scripts/build-gcp-host-image.sh packer/gcp/scripts/*.sh
+      - run: bash -n scripts/build-gcp-host-image.sh packer/gcp/files/jarvis-compose packer/gcp/scripts/*.sh
 
   security:
     runs-on: ubuntu-latest

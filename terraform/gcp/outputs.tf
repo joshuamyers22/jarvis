@@ -32,10 +32,33 @@ output "host_image_contract" {
     images              = var.host_images
     startup_scripts     = false
     build_manifest_path = "/etc/jarvis-host-image.json"
-    baked_prerequisites = ["docker-ce", "docker-compose-plugin", "google-cloud-ops-agent", "rsync", "os-hardening"]
+    baked_prerequisites = ["docker-ce", "docker-compose-plugin", "google-cloud-ops-agent", "jarvis-compose-supervisor", "rsync", "os-hardening"]
     update_strategy     = "change one role image reference and replace that role through a reviewed Terraform plan"
     rollback_strategy   = "restore the prior exact image reference through a reviewed Terraform plan"
     replacement_role    = var.host_replacement_role
+  }
+}
+
+output "service_supervision_contract" {
+  description = "Host-level lifecycle, health, and bounded-restart contract for Compose roles."
+  value = {
+    roles                   = ["control", "feed", "notebook"]
+    systemd_unit_template   = "jarvis-compose@.service"
+    enabled_on_first_deploy = true
+    boot_target             = "multi-user.target"
+    compose_restart_policy  = "no"
+    restart = {
+      policy           = "on-failure"
+      delay_seconds    = 20
+      interval_seconds = 300
+      burst            = 3
+    }
+    health = {
+      command                      = "sudo /usr/local/sbin/jarvis-compose health ROLE"
+      format                       = "json"
+      interval_seconds             = 30
+      consecutive_failures_allowed = 2
+    }
   }
 }
 

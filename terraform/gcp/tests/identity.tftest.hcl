@@ -140,9 +140,14 @@ run "least_privilege_identity_contract" {
       google_compute_instance.feed.boot_disk[0].initialize_params[0].image == var.host_images.feed &&
       google_compute_instance.notebook.boot_disk[0].initialize_params[0].image == var.host_images.notebook &&
       output.host_image_contract.startup_scripts == false &&
-      output.host_image_contract.build_manifest_path == "/etc/jarvis-host-image.json"
+      output.host_image_contract.build_manifest_path == "/etc/jarvis-host-image.json" &&
+      output.service_supervision_contract.systemd_unit_template == "jarvis-compose@.service" &&
+      output.service_supervision_contract.compose_restart_policy == "no" &&
+      output.service_supervision_contract.restart.policy == "on-failure" &&
+      output.service_supervision_contract.restart.burst == 3 &&
+      output.service_supervision_contract.health.format == "json"
     )
-    error_message = "Every VM role must boot only from its reviewed immutable host image without a startup script."
+    error_message = "Every VM role must boot from its immutable image and expose the bounded systemd supervision contract."
   }
 
   assert {
@@ -172,7 +177,7 @@ run "least_privilege_identity_contract" {
   assert {
     condition = (
       length(google_project_iam_member.operator_os_login) == 1 &&
-      alltrue([for binding in google_project_iam_member.operator_os_login : binding.role == "roles/compute.osLogin"]) &&
+      alltrue([for binding in google_project_iam_member.operator_os_login : binding.role == "roles/compute.osAdminLogin"]) &&
       length(google_project_iam_member.operator_iap_ssh) == 1 &&
       alltrue([
         for binding in google_project_iam_member.operator_iap_ssh :
@@ -185,7 +190,7 @@ run "least_privilege_identity_contract" {
         binding.role == google_project_iam_custom_role.instance_power_operator.name
       ])
     )
-    error_message = "Operators must be limited to OS Login, port-22 IAP tunnels, and instance start/stop."
+    error_message = "Operators must be limited to OS Admin Login, port-22 IAP tunnels, and instance start/stop."
   }
 
   assert {
