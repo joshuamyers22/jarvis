@@ -21,6 +21,23 @@ locals {
     scratch      = var.scratch_bucket_name
     backup       = var.backup_bucket_name
   }
+  storage_kms_keys = toset(["data", "airflow_logs", "scratch", "backup"])
+}
+
+resource "aws_kms_key" "storage" {
+  for_each = local.storage_kms_keys
+
+  description             = "${local.name_prefix} ${replace(each.key, "_", " ")} storage encryption"
+  enable_key_rotation     = true
+  deletion_window_in_days = 30
+  tags                    = merge(local.common_tags, { StoragePurpose = each.key })
+}
+
+resource "aws_kms_alias" "storage" {
+  for_each = aws_kms_key.storage
+
+  name          = "alias/${local.name_prefix}-${replace(each.key, "_", "-")}-storage"
+  target_key_id = each.value.key_id
 }
 
 resource "aws_s3_bucket" "storage" {
@@ -68,8 +85,10 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "data" {
   bucket = aws_s3_bucket.data.id
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
+      kms_master_key_id = aws_kms_key.storage["data"].arn
+      sse_algorithm     = "aws:kms"
     }
+    bucket_key_enabled = true
   }
 }
 
@@ -79,8 +98,10 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "storage" {
   bucket = each.value.id
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
+      kms_master_key_id = aws_kms_key.storage[each.key].arn
+      sse_algorithm     = "aws:kms"
     }
+    bucket_key_enabled = true
   }
 }
 

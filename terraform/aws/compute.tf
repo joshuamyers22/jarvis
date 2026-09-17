@@ -30,7 +30,7 @@ resource "aws_security_group" "control" {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = var.workload_egress_cidr_blocks
   }
 }
 
@@ -43,7 +43,7 @@ resource "aws_security_group" "notebook" {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = var.workload_egress_cidr_blocks
   }
 }
 
@@ -54,6 +54,11 @@ resource "aws_instance" "control" {
   vpc_security_group_ids = [aws_security_group.control.id]
   iam_instance_profile   = aws_iam_instance_profile.roles["control"].name
   user_data              = local.user_data
+
+  metadata_options {
+    http_endpoint = "enabled"
+    http_tokens   = "required"
+  }
 
   root_block_device {
     volume_size = 30
@@ -71,6 +76,11 @@ resource "aws_instance" "feed" {
   iam_instance_profile   = aws_iam_instance_profile.roles["feed"].name
   user_data              = local.user_data
 
+  metadata_options {
+    http_endpoint = "enabled"
+    http_tokens   = "required"
+  }
+
   root_block_device {
     volume_size = 30
     encrypted   = true
@@ -86,6 +96,11 @@ resource "aws_instance" "notebook" {
   vpc_security_group_ids = [aws_security_group.notebook.id]
   iam_instance_profile   = aws_iam_instance_profile.roles["notebook"].name
   user_data              = local.user_data
+
+  metadata_options {
+    http_endpoint = "enabled"
+    http_tokens   = "required"
+  }
 
   root_block_device {
     volume_size = 200

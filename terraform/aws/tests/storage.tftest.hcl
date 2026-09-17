@@ -42,12 +42,13 @@ mock_provider "aws" {
 mock_provider "random" {}
 
 variables {
-  bucket_name             = "jarvis-research-prod-data"
-  airflow_log_bucket_name = "jarvis-research-prod-airflow-logs"
-  scratch_bucket_name     = "jarvis-research-prod-scratch"
-  backup_bucket_name      = "jarvis-research-prod-backup"
-  vpc_id                  = "vpc-12345678"
-  private_subnet_ids      = ["subnet-12345678"]
+  bucket_name                 = "jarvis-research-prod-data"
+  airflow_log_bucket_name     = "jarvis-research-prod-airflow-logs"
+  scratch_bucket_name         = "jarvis-research-prod-scratch"
+  backup_bucket_name          = "jarvis-research-prod-backup"
+  vpc_id                      = "vpc-12345678"
+  private_subnet_ids          = ["subnet-12345678"]
+  workload_egress_cidr_blocks = ["10.0.0.0/8"]
 }
 
 run "storage_boundaries_are_private_and_distinct" {
@@ -61,6 +62,21 @@ run "storage_boundaries_are_private_and_distinct" {
       aws_s3_bucket.storage["backup"].bucket == "jarvis-research-prod-backup"
     )
     error_message = "AWS must provision separate data, log, scratch, and backup buckets."
+  }
+
+  assert {
+    condition = (
+      aws_ecr_repository.images.image_tag_mutability == "IMMUTABLE" &&
+      alltrue([for key in values(aws_kms_key.storage) : key.enable_key_rotation]) &&
+      one(aws_s3_bucket_server_side_encryption_configuration.data.rule).apply_server_side_encryption_by_default[0].sse_algorithm == "aws:kms" &&
+      alltrue([for boundary in values(aws_s3_bucket_server_side_encryption_configuration.storage) :
+        one(boundary.rule).apply_server_side_encryption_by_default[0].sse_algorithm == "aws:kms"
+      ]) &&
+      aws_instance.control.metadata_options[0].http_tokens == "required" &&
+      aws_instance.feed.metadata_options[0].http_tokens == "required" &&
+      aws_instance.notebook.metadata_options[0].http_tokens == "required"
+    )
+    error_message = "AWS storage, images, and instance metadata must use the hardened production defaults."
   }
 
   assert {

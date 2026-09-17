@@ -25,7 +25,7 @@ DAG_FOLDER = os.path.join(os.path.dirname(__file__), "..", "..", "dags")
 
 @pytest.fixture(scope="module")
 def dagbag() -> DagBag:
-    return DagBag(dag_folder=DAG_FOLDER, include_examples=False)
+    return DagBag(dag_folder=DAG_FOLDER)
 
 
 def test_no_import_errors(dagbag: DagBag):

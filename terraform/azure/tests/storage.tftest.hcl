@@ -124,6 +124,16 @@ run "storage_boundaries_are_private_and_distinct" {
 
   assert {
     condition = (
+      azurerm_storage_account.data.network_rules[0].default_action == "Deny" &&
+      azurerm_key_vault.main.network_acls[0].default_action == "Deny" &&
+      toset(azurerm_storage_account.data.network_rules[0].virtual_network_subnet_ids) == toset([var.subnet_id, var.aci_subnet_id]) &&
+      toset(azurerm_key_vault.main.network_acls[0].virtual_network_subnet_ids) == toset([var.subnet_id, var.aci_subnet_id])
+    )
+    error_message = "Azure storage and Key Vault must deny public data-plane access and allow only workload subnets."
+  }
+
+  assert {
+    condition = (
       azurerm_role_assignment.control_logs.scope == azurerm_storage_container.logs.id &&
       azurerm_role_assignment.job_data.scope == azurerm_storage_container.data.id &&
       azurerm_role_assignment.feed_data.scope == azurerm_storage_container.data.id &&

@@ -58,6 +58,21 @@ variable "private_subnet_ids" {
   description = "Private subnets for Batch tasks and RDS."
 }
 
+variable "workload_egress_cidr_blocks" {
+  type        = list(string)
+  description = "Approved private endpoints or egress-proxy CIDRs reachable by workloads. Public default routes are forbidden."
+
+  validation {
+    condition = (
+      length(var.workload_egress_cidr_blocks) > 0 &&
+      alltrue([for cidr in var.workload_egress_cidr_blocks :
+        can(cidrnetmask(cidr)) && !contains(["0.0.0.0/0", "::/0"], cidr)
+      ])
+    )
+    error_message = "workload_egress_cidr_blocks must contain valid, restricted CIDRs and cannot include an unrestricted public route."
+  }
+}
+
 variable "db_instance_class" {
   type    = string
   default = "db.t4g.micro"

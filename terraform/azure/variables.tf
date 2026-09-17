@@ -64,7 +64,7 @@ variable "notebook_vm_size" {
 
 variable "subnet_id" {
   type        = string
-  description = "Existing subnet. This module does not create networking."
+  description = "Existing VM subnet with Microsoft.Storage and Microsoft.KeyVault service endpoints."
 }
 
 variable "db_subnet_id" {
@@ -79,7 +79,7 @@ variable "private_dns_zone_id" {
 
 variable "aci_subnet_id" {
   type        = string
-  description = "Existing subnet delegated to Microsoft.ContainerInstance/containerGroups."
+  description = "Existing ACI subnet delegated to Microsoft.ContainerInstance/containerGroups with Storage and KeyVault service endpoints."
 }
 
 variable "admin_ssh_public_key" {

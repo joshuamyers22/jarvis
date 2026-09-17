@@ -19,6 +19,11 @@ updates:
     directory: "/terraform/gcp"
     schedule:
       interval: monthly
+    # A Google provider major must be upgraded across the shared module,
+    # network, bootstrap, and all live roots as one coordinated change.
+    ignore:
+      - dependency-name: hashicorp/google
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: terraform
     directory: "/terraform/aws"
     schedule:

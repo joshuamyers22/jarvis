@@ -22,6 +22,12 @@ Contributor role instead of general resource-group Contributor, preventing the
 control identity from using broad storage-management permissions to bypass the
 container data-plane assignments. Provider-specific IAM remains resource-scoped:
 
+AWS assigns a separate customer-managed, automatically rotating KMS key to each
+storage class; its runtime roles receive key permissions only for the classes
+they can access. Azure Storage and Key Vault deny public data-plane traffic and
+admit only the configured VM and ACI subnets through service endpoints. GCP
+Cloud SQL accepts encrypted connections only.
+
 - the control identity has object access only to `airflow_logs`;
 - the job identity can write `data` and `scratch`;
 - the feed identity can ingest into `data` but has no log, scratch, or backup
@@ -63,10 +69,13 @@ invalid names. All GCP buckets enforce uniform bucket-level access,
 public-access prevention, and `force_destroy = false`.
 
 The AWS root requires the same four variable names in its private variable
-file; each value must be a globally unique S3 bucket name. Azure defaults to
+file; each value must be a globally unique S3 bucket name. It also requires
+`workload_egress_cidr_blocks`, restricted to approved private endpoints or an
+egress proxy—unrestricted public routes are rejected. Azure defaults to
 `research`, `airflow-logs`, `scratch`, and `backups` within the environment's
-storage account and exposes variables to change any container name. Keep all
-four names distinct on every provider.
+storage account and exposes variables to change any container name. Its VM and
+ACI subnets must have Storage and Key Vault service endpoints. Keep all four
+names distinct on every provider.
 
 ## Existing-environment migration
 

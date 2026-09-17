@@ -7,8 +7,8 @@ it asks for 32 GiB while the ingest DAG asks for 2, from the same image.
 from __future__ import annotations
 
 import pendulum
+from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 from airflow.sdk import DAG
-from airflow.sensors.external_task import ExternalTaskSensor
 
 from dags._common import DEFAULT_ARGS, LOCAL_TZ, dispatch, verify
 

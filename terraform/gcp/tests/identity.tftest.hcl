@@ -63,6 +63,11 @@ run "least_privilege_identity_contract" {
   }
 
   assert {
+    condition     = google_sql_database_instance.airflow.settings[0].ip_configuration[0].ssl_mode == "ENCRYPTED_ONLY"
+    error_message = "Cloud SQL must reject unencrypted client connections."
+  }
+
+  assert {
     condition = (
       google_compute_instance.control.service_account[0].email == google_service_account.roles["control"].email &&
       google_compute_instance.feed.service_account[0].email == google_service_account.roles["feed"].email &&

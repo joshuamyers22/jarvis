@@ -60,12 +60,20 @@ data "aws_iam_policy_document" "data_readwrite" {
     actions   = ["s3:ListBucket"]
     resources = [aws_s3_bucket.data.arn]
   }
+  statement {
+    actions   = ["kms:Decrypt", "kms:Encrypt", "kms:GenerateDataKey"]
+    resources = [aws_kms_key.storage["data"].arn]
+  }
 }
 
 data "aws_iam_policy_document" "data_writeonly" {
   statement {
     actions   = ["s3:PutObject"]
     resources = ["${aws_s3_bucket.data.arn}/raw/*"]
+  }
+  statement {
+    actions   = ["kms:Encrypt", "kms:GenerateDataKey"]
+    resources = [aws_kms_key.storage["data"].arn]
   }
 }
 
@@ -77,6 +85,10 @@ data "aws_iam_policy_document" "data_readonly" {
   statement {
     actions   = ["s3:ListBucket"]
     resources = [aws_s3_bucket.data.arn]
+  }
+  statement {
+    actions   = ["kms:Decrypt"]
+    resources = [aws_kms_key.storage["data"].arn]
   }
 }
 
@@ -93,6 +105,10 @@ data "aws_iam_policy_document" "control_logs" {
   statement {
     actions   = ["s3:ListBucket"]
     resources = [aws_s3_bucket.storage["airflow_logs"].arn]
+  }
+  statement {
+    actions   = ["kms:Decrypt", "kms:Encrypt", "kms:GenerateDataKey"]
+    resources = [aws_kms_key.storage["airflow_logs"].arn]
   }
 }
 
@@ -119,6 +135,10 @@ data "aws_iam_policy_document" "scratch_readwrite" {
   statement {
     actions   = ["s3:ListBucket"]
     resources = [aws_s3_bucket.storage["scratch"].arn]
+  }
+  statement {
+    actions   = ["kms:Decrypt", "kms:Encrypt", "kms:GenerateDataKey"]
+    resources = [aws_kms_key.storage["scratch"].arn]
   }
 }
 

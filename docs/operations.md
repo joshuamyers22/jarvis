@@ -8,6 +8,10 @@ AWS and Azure currently expect existing private networking. For GCP, first
 create the backend using the
 [state bootstrap procedure](../terraform/bootstrap/gcp/README.md); do not create
 an ad hoc bucket or reuse another environment's state prefix.
+AWS workload security groups accept only the explicitly configured
+`workload_egress_cidr_blocks`; route package downloads and public APIs through a
+reviewed egress proxy or private endpoints. Azure Storage and Key Vault require
+the configured VM and ACI subnets to expose their respective service endpoints.
 Deploy GCP through the [live environment roots](../terraform/live/gcp/README.md),
 not by applying the reusable `terraform/gcp` module directly. Each live root
 owns an isolated private VPC, Cloud NAT, private service access, private DNS,

@@ -45,6 +45,12 @@ resource "azurerm_key_vault" "main" {
   soft_delete_retention_days = 7
   rbac_authorization_enabled = true
   tags                       = local.common_tags
+
+  network_acls {
+    bypass                     = "AzureServices"
+    default_action             = "Deny"
+    virtual_network_subnet_ids = [var.subnet_id, var.aci_subnet_id]
+  }
 }
 
 data "azurerm_client_config" "current" {}

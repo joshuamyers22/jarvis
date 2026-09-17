@@ -29,6 +29,12 @@ terraform init -backend-config="bucket=my-tfstate"
 terraform apply -var-file=prod.tfvars
 ```
 
+The AWS root requires `workload_egress_cidr_blocks` to contain only reviewed
+private-endpoint or egress-proxy CIDRs; unrestricted `0.0.0.0/0` and `::/0`
+routes are rejected. The Azure VM and ACI subnets must expose the
+`Microsoft.Storage` and `Microsoft.KeyVault` service endpoints because both
+data planes default to deny.
+
 For GCP, create the protected remote-state bucket with the standalone
 [`bootstrap/gcp`](bootstrap/gcp/README.md) root, then deploy only through the
 explicit [`live/gcp/{dev,stage,prod}`](live/gcp/README.md) roots. `terraform/gcp`

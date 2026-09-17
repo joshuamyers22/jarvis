@@ -26,7 +26,7 @@ ENV PYTHONUNBUFFERED=1 \
     PATH=/opt/venv/bin:$PATH
 
 # --- 1. system libraries (changes ~never) ------------------------------------
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
         build-essential \
         libpq-dev \
         git \
@@ -41,7 +41,10 @@ COPY --from=ghcr.io/astral-sh/uv:0.12.5@sha256:e85be844203885286c60ffad8a858d48a
 # --- 3. locked dependencies (changes when deps change) -----------------------
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-install-project --extra "${CLOUD}"
+# The Google provider declares Ray for optional Vertex/Ray operators. Jarvis
+# uses Cloud Run Jobs and deliberately excludes Ray: its bundled Java runtime
+# materially enlarges the image and is outside this platform's execution path.
+RUN uv sync --frozen --no-install-project --no-install-package ray --extra "${CLOUD}"
 
 # --- 4. static config (changes occasionally) ---------------------------------
 COPY docker/jupyter/jupyter_server_config.py /etc/jupyter/jupyter_server_config.py
@@ -52,7 +55,8 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 COPY jobs/ /app/jobs/
 COPY ctl/ /app/ctl/
 COPY dags/ ${AIRFLOW_HOME}/dags/
-RUN uv sync --frozen --extra "${CLOUD}"
+RUN uv sync --frozen --no-install-package ray --extra "${CLOUD}" \
+    && uv cache clean
 
 # Recorded so a running container can say which stack it carries. `ctl deploy`
 # checks this against the target's RP_CLOUD before restarting anything.

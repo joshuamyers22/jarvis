@@ -19,6 +19,7 @@ resource "google_sql_database_instance" "airflow" {
     ip_configuration {
       ipv4_enabled    = false
       private_network = var.network_self_link
+      ssl_mode        = "ENCRYPTED_ONLY"
     }
 
     insights_config {

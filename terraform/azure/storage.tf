@@ -11,6 +11,12 @@ resource "azurerm_storage_account" "data" {
   min_tls_version                 = "TLS1_2"
   tags                            = local.common_tags
 
+  network_rules {
+    default_action             = "Deny"
+    bypass                     = ["AzureServices"]
+    virtual_network_subnet_ids = [var.subnet_id, var.aci_subnet_id]
+  }
+
   blob_properties {
     versioning_enabled = true
     delete_retention_policy {
