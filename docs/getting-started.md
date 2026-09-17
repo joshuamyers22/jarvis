@@ -7,7 +7,7 @@ This guide runs Jarvis locally without provisioning cloud infrastructure.
 Install Python 3.12, uv, Git, and Docker with Compose v2, then run:
 
 ```bash
-git clone https://github.com/joshuamyers22/jarvis.git
+git clone https://github.com/qtrpartners/jarvis.git
 cd jarvis
 uv sync --frozen --extra dev --extra gcp
 uv run ruff check .

@@ -7,7 +7,7 @@ expectations are clear.
 ## Development setup
 
 ```bash
-git clone https://github.com/joshuamyers22/jarvis.git
+git clone https://github.com/qtrpartners/jarvis.git
 cd jarvis
 uv sync --frozen --extra dev --extra gcp
 ```

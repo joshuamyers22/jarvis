@@ -52,7 +52,7 @@ Prerequisites: Python 3.12, [uv](https://docs.astral.sh/uv/), Docker with
 Compose v2, and Git.
 
 ```bash
-git clone https://github.com/joshuamyers22/jarvis.git
+git clone https://github.com/qtrpartners/jarvis.git
 cd jarvis
 uv sync --frozen --extra dev --extra gcp
 uv run ruff check .

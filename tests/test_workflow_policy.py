@@ -83,7 +83,7 @@ def test_centralized_validation_is_immutable_and_least_privilege() -> None:
 
     assert re.fullmatch(r"[0-9a-f]{40}", revision)
     assert reference in source
-    assert contract["allowed_callers"] == ["joshuamyers22/jarvis"]
+    assert contract["allowed_callers"] == ["qtrpartners/jarvis"]
     assert contract["token_permissions"] == ["contents:read"]
     assert contract["cloud_permissions"] is False
     assert contract["accepts_secrets"] is False

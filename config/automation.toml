@@ -3,8 +3,8 @@ schema_version = 1
 [validation]
 repository = "joshuamyers22/jarvis-automation"
 workflow = ".github/workflows/jarvis-ci.yml"
-revision = "a130869d8bba3c419d1c0d72cb927a3ab319c033"
-allowed_callers = ["joshuamyers22/jarvis"]
+revision = "7f92350563685092549b651bdeed4ad1d38e46c5"
+allowed_callers = ["qtrpartners/jarvis"]
 token_permissions = ["contents:read"]
 cloud_permissions = false
 accepts_secrets = false
