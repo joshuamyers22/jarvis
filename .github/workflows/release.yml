@@ -1,0 +1,131 @@
+name: release
+
+# A release can begin only after the read-only CI workflow succeeds on main.
+# workflow_run is privileged, so the job also checks the originating event,
+# repository, branch, and conclusion before entering the protected environment.
+on:
+  workflow_run:
+    workflows: ["ci"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: publish ${{ matrix.cloud }} image
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        cloud: [gcp, aws, azure]
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+
+    steps:
+      - name: Check out the validated commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - name: Verify release source
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$RELEASE_SHA" ]]
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ -z "$(git status --porcelain)" ]]
+
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
+      - name: Resolve image name
+        id: image
+        shell: bash
+        env:
+          GCP_IMAGE: ${{ vars.GCP_IMAGE }}
+          AWS_IMAGE: ${{ vars.AWS_IMAGE }}
+          AZURE_IMAGE: ${{ vars.AZURE_IMAGE }}
+        run: |
+          set -euo pipefail
+          case "${{ matrix.cloud }}" in
+            gcp) image="$GCP_IMAGE" ;;
+            aws) image="$AWS_IMAGE" ;;
+            azure) image="$AZURE_IMAGE" ;;
+            *) exit 2 ;;
+          esac
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+
+      # Provider login is skipped until that provider has an explicitly
+      # configured image target. Every configured path uses keyless OIDC.
+      - name: Authenticate to GCP with OIDC
+        if: matrix.cloud == 'gcp' && steps.image.outputs.image != ''
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_CI_SERVICE_ACCOUNT }}
+
+      - name: Authenticate to AWS with OIDC
+        if: matrix.cloud == 'aws' && steps.image.outputs.image != ''
+        uses: aws-actions/configure-aws-credentials@cbe3b392738ccf3f987d68400dafcf4b0624a56c # v6.2.4
+        with:
+          role-to-assume: ${{ vars.AWS_CI_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Authenticate to Azure with OIDC
+        if: matrix.cloud == 'azure' && steps.image.outputs.image != ''
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4e906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Log in to the configured registry
+        if: steps.image.outputs.image != ''
+        shell: bash
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+        run: |
+          set -euo pipefail
+          host="${IMAGE%%/*}"
+          case "${{ matrix.cloud }}" in
+            gcp) gcloud auth configure-docker "$host" --quiet ;;
+            aws) aws ecr get-login-password --region "$AWS_REGION" \
+              | docker login --username AWS --password-stdin "$host" ;;
+            azure) az acr login --name "${host%%.*}" ;;
+            *) exit 2 ;;
+          esac
+
+      - name: Build and publish the validated commit
+        if: steps.image.outputs.image != ''
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: true
+          build-args: |
+            CLOUD=${{ matrix.cloud }}
+            VCS_REF=${{ env.RELEASE_SHA }}
+          tags: ${{ steps.image.outputs.image }}:${{ env.RELEASE_SHA }}
+          # A privileged release never consumes a pull-request cache.
+          cache-from: type=gha,scope=release-${{ matrix.cloud }}
+          cache-to: type=gha,mode=max,scope=release-${{ matrix.cloud }}
+          provenance: mode=max
+          sbom: true

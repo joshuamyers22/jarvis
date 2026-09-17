@@ -1,6 +1,6 @@
 # Jarvis production functionality plan
 
-Status: active — Phase 3 complete locally; Phase 4 next
+Status: active — Phase 4 in progress; P4.1 complete locally and P4.1a next
 Prepared: 2026-09-16
 Reference reviewed: [`sixtycapital/infrastructure`](https://github.com/sixtycapital/infrastructure/tree/b6da17b68b9a2be41dbfa616506b70e30ce62c6e), tag `3.4.1`
 
@@ -536,8 +536,21 @@ Exit gate:
 
 Goal: replace the reference's mutable daily rollout with auditable releases.
 
-- **P4.1 Separate validation from release.** Pull requests run unit, architecture,
-  DAG, Terraform, image smoke, policy, and security checks without production access.
+Implementation status (2026-09-17): P4.1 is implemented and locally validated;
+GitHub ruleset/environment enforcement and the first approved release remain live
+evidence. P4.1a is next.
+
+- **P4.1 Separate validation from release — complete locally.** Pull requests and
+  main-branch CI run unit, architecture, DAG, Terraform, Packer, image smoke,
+  policy, and security checks with a read-only token and no environment, secret,
+  OIDC, registry-login, or push capability. A dedicated release workflow starts
+  only after successful CI for a push from this repository's `main`, rechecks the
+  event/repository/branch/conclusion boundary, enters the protected `production`
+  environment, checks out the exact validated SHA without persisting credentials,
+  and publishes only that immutable tag using provider OIDC. Validation and
+  release cache namespaces are isolated. Repository policy tests enforce this
+  split and full-SHA action pins; the runbook defines ruleset, environment,
+  variable, cloud-claim, and live acceptance requirements.
 - **P4.1a Add cross-repository Apps.** Register separate organization-owned read and
   release GitHub Apps, install them only on required repositories, store and rotate
   their private keys as protected secrets, and test that each App is denied outside

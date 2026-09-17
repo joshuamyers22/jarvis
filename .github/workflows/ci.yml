@@ -115,8 +115,9 @@ jobs:
             CLOUD=${{ matrix.cloud }}
             VCS_REF=${{ github.sha }}
           tags: jarvis-ci:${{ matrix.cloud }}-${{ github.sha }}
-          cache-from: type=gha,scope=${{ matrix.cloud }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.cloud }}
+          # Validation and release never share writable cache namespaces.
+          cache-from: type=gha,scope=validation-${{ matrix.cloud }}
+          cache-to: type=gha,mode=max,scope=validation-${{ matrix.cloud }}
       - name: Smoke all image roles
         run: scripts/smoke-image.sh jarvis-ci:${{ matrix.cloud }}-${{ github.sha }} ${{ matrix.cloud }}
       - name: Generate image SBOM
@@ -141,83 +142,3 @@ jobs:
           ignore-unfixed: true
           exit-code: "1"
           format: table
-
-  # Publishing is deliberately separate from validation. Only a push to main
-  # can obtain cloud identity or mutate a registry.
-  publish:
-    needs: [image-test]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    environment: production
-    strategy:
-      fail-fast: false
-      matrix:
-        cloud: [gcp, aws, azure]
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
-
-      # --- provider login (only the configured one runs) --------------------
-      - name: Auth to GCP
-        if: matrix.cloud == 'gcp' && vars.GCP_IMAGE != ''
-        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
-        with:
-          project_id: ${{ vars.GCP_PROJECT_ID }}
-          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
-          service_account: ${{ vars.GCP_CI_SERVICE_ACCOUNT }}
-
-      - name: Auth to AWS
-        if: matrix.cloud == 'aws' && vars.AWS_IMAGE != ''
-        uses: aws-actions/configure-aws-credentials@cbe3b392738ccf3f987d68400dafcf4b0624a56c # v6.2.4
-        with:
-          role-to-assume: ${{ secrets.AWS_CI_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
-
-      - name: Auth to Azure
-        if: matrix.cloud == 'azure' && vars.AZURE_IMAGE != ''
-        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Resolve image name
-        id: img
-        run: |
-          case "${{ matrix.cloud }}" in
-            gcp)   echo "image=${{ vars.GCP_IMAGE }}"   >> "$GITHUB_OUTPUT" ;;
-            aws)   echo "image=${{ vars.AWS_IMAGE }}"   >> "$GITHUB_OUTPUT" ;;
-            azure) echo "image=${{ vars.AZURE_IMAGE }}" >> "$GITHUB_OUTPUT" ;;
-          esac
-
-      - name: Registry login
-        if: steps.img.outputs.image != ''
-        run: |
-          host="$(echo '${{ steps.img.outputs.image }}' | cut -d/ -f1)"
-          case "${{ matrix.cloud }}" in
-            gcp)   gcloud auth configure-docker "$host" --quiet ;;
-            aws)   aws ecr get-login-password --region "${{ vars.AWS_REGION }}" \
-                     | docker login --username AWS --password-stdin "$host" ;;
-            azure) az acr login --name "${host%%.*}" ;;
-          esac
-
-      - name: Build and push
-        if: steps.img.outputs.image != ''
-        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
-        with:
-          context: .
-          file: docker/Dockerfile
-          push: true
-          build-args: |
-            CLOUD=${{ matrix.cloud }}
-            VCS_REF=${{ github.sha }}
-          # Publish only the immutable SHA; GitHub Actions stores layer caches.
-          tags: |
-            ${{ steps.img.outputs.image }}:${{ github.sha }}
-          cache-from: type=gha,scope=${{ matrix.cloud }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.cloud }}
-          provenance: mode=max
-          sbom: true

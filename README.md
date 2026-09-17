@@ -94,6 +94,7 @@ docs/             setup, design, notebook, and operations guides
 - [Architecture](docs/architecture.md)
 - [Notebook storage and cross-machine workflows](docs/notebooks.md)
 - [Deployment and operations](docs/operations.md)
+- [CI and release trust boundary](docs/release-automation.md)
 - [Runtime secrets](docs/runtime-secrets.md)
 - [Declarative runtime configuration](docs/declarative-configuration.md)
 - [Data ownership contract](docs/data-ownership.md)

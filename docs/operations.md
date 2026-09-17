@@ -104,8 +104,13 @@ uv run ctl doctor all
 ```
 
 The CLI rejects dirty trees so image contents correspond to the tag. CI builds
-each provider image after checks pass. Registry publishing is skipped until the
-corresponding repository variables and keyless identity secrets are configured.
+and scans each provider image without cloud access. A separate release workflow
+runs only after CI succeeds for a push to this repository's `main`, enters the
+protected `production` environment, checks out the exact validated SHA, and uses
+keyless OIDC to publish that immutable tag. Registry publishing is skipped until
+the corresponding protected environment variables are configured. Follow the
+[CI and release trust-boundary runbook](release-automation.md) when changing
+workflow permissions, triggers, environments, or cloud federation.
 
 ## Access
 

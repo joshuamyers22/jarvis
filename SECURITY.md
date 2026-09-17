@@ -38,6 +38,10 @@ provider image builds. Production deploys use immutable Git SHA image tags;
 Pull requests scan locked dependencies, repository secrets, infrastructure
 configuration, and every provider image. Fixed high or critical findings block
 merging. Each image build also emits an SPDX JSON SBOM retained with CI evidence.
+Pull-request workflows have read-only repository access and cannot request OIDC,
+enter a deployment environment, authenticate to a cloud, or publish an image.
+Registry publication is isolated in the protected release workflow and uses only
+short-lived federated identities.
 
 A vulnerability exception requires a private security issue containing the
 affected component and version, exploitability assessment, compensating control,

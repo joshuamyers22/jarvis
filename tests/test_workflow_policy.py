@@ -1,0 +1,87 @@
+"""Repository policy tests for GitHub Actions privilege boundaries."""
+
+import re
+from pathlib import Path
+
+WORKFLOWS = Path(".github/workflows")
+ACTION_REFERENCE = re.compile(r"^[ \t]*-[ \t]+uses:[ \t]+([^\s#]+)", re.MULTILINE)
+PINNED_ACTION = re.compile(r"^[^@]+@[0-9a-f]{40}$")
+PULL_REQUEST_TRIGGER = re.compile(r"^[ \t]*pull_request(?:_target)?:", re.MULTILINE)
+
+
+def workflow(name: str) -> str:
+    return (WORKFLOWS / name).read_text()
+
+
+def workflow_paths() -> list[Path]:
+    return sorted([*WORKFLOWS.glob("*.yml"), *WORKFLOWS.glob("*.yaml")])
+
+
+def test_pull_request_workflows_are_read_only_and_credential_free() -> None:
+    pull_request_workflows = [
+        path for path in workflow_paths() if PULL_REQUEST_TRIGGER.search(path.read_text())
+    ]
+    assert pull_request_workflows
+
+    forbidden = (
+        "id-token: write",
+        "environment:",
+        "${{ secrets.",
+        "google-github-actions/auth@",
+        "aws-actions/configure-aws-credentials@",
+        "azure/login@",
+        "docker/login-action@",
+        "docker login",
+        "docker push",
+        "gcloud auth",
+        "aws ecr",
+        "az acr",
+        "push: true",
+    )
+    for path in pull_request_workflows:
+        source = path.read_text()
+        assert "permissions:\n  contents: read" in source, path
+        assert "pull_request_target:" not in source, path
+        assert not re.search(r"^[ \t]+[a-z-]+:[ \t]+write[ \t]*$", source, re.MULTILINE), path
+        assert not re.search(r"\$\{\{[ \t]*secrets\.", source), path
+        for marker in forbidden:
+            assert marker not in source, f"{path} grants pull requests access to {marker!r}"
+
+
+def test_release_requires_successful_main_ci_from_this_repository() -> None:
+    source = workflow("release.yml")
+
+    for required in (
+        "workflow_run:",
+        'workflows: ["ci"]',
+        "types: [completed]",
+        "branches: [main]",
+        "workflow_run.conclusion == 'success'",
+        "workflow_run.event == 'push'",
+        "workflow_run.head_branch == 'main'",
+        "workflow_run.head_repository.full_name == github.repository",
+        "ref: ${{ github.event.workflow_run.head_sha }}",
+        "persist-credentials: false",
+        "environment: production",
+        "id-token: write",
+    ):
+        assert required in source
+
+    assert "pull_request:" not in source
+    assert "workflow_dispatch:" not in source
+    assert "${{ secrets." not in source
+
+
+def test_validation_and_release_caches_are_separate() -> None:
+    assert "scope=validation-${{ matrix.cloud }}" in workflow("ci.yml")
+    assert "scope=release-${{ matrix.cloud }}" in workflow("release.yml")
+
+
+def test_all_third_party_actions_are_immutable_pins() -> None:
+    references = {path: ACTION_REFERENCE.findall(path.read_text()) for path in workflow_paths()}
+    assert references
+    for path, actions in references.items():
+        for action in actions:
+            assert action.startswith("./") or PINNED_ACTION.fullmatch(action), (
+                f"{path}: action is not SHA-pinned: {action}"
+            )

@@ -90,11 +90,12 @@ variables from the production Terraform outputs:
 | `GCP_CI_SERVICE_ACCOUNT` | `github_oidc.ci_service_account` |
 
 These are identifiers, not credentials, so repository/environment variables are
-appropriate. The workflow requests `id-token: write` and exchanges the GitHub
-OIDC token for short-lived Google credentials. Do not create a JSON key or store
-one as a GitHub secret. The current workflow publishes only through the protected
-`production` environment; add dedicated protected jobs before using the dev or
-staging providers.
+appropriate. The dedicated release workflow requests `id-token: write` only after
+read-only CI succeeds on `main`, then exchanges the GitHub OIDC token for
+short-lived Google credentials inside the protected `production` environment. Do
+not create a JSON key or store one as a GitHub secret. See the
+[CI and release trust-boundary runbook](release-automation.md); add dedicated
+protected jobs before using the dev or staging providers.
 
 After apply, verify the configured values with:
 
