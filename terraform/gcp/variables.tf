@@ -295,8 +295,76 @@ variable "db_availability_type" {
 
 variable "db_deletion_protection" {
   type        = bool
-  description = "Protect the Cloud SQL instance from accidental deletion."
+  description = "Protect the Cloud SQL instance from accidental deletion in Terraform and the Cloud SQL API."
   default     = true
+}
+
+variable "db_backup_start_time" {
+  type        = string
+  description = "UTC start time for the daily Cloud SQL backup window in HH:MM format."
+  default     = "07:00"
+
+  validation {
+    condition = (
+      can(regex("^(?:[01][0-9]|2[0-3]):[0-5][0-9]$", var.db_backup_start_time))
+    )
+    error_message = "db_backup_start_time must be a valid UTC time in HH:MM format."
+  }
+}
+
+variable "db_backup_retained_count" {
+  type        = number
+  description = "Number of daily automated Cloud SQL backups to retain."
+  default     = 8
+
+  validation {
+    condition     = var.db_backup_retained_count >= 2 && var.db_backup_retained_count <= 365 && floor(var.db_backup_retained_count) == var.db_backup_retained_count
+    error_message = "db_backup_retained_count must be a whole number from 2 through 365."
+  }
+}
+
+variable "db_transaction_log_retention_days" {
+  type        = number
+  description = "Days of PostgreSQL transaction logs retained for point-in-time recovery."
+  default     = 7
+
+  validation {
+    condition     = var.db_transaction_log_retention_days >= 1 && var.db_transaction_log_retention_days <= 7 && floor(var.db_transaction_log_retention_days) == var.db_transaction_log_retention_days
+    error_message = "db_transaction_log_retention_days must be a whole number from 1 through 7 for Cloud SQL Enterprise."
+  }
+}
+
+variable "db_maintenance_day" {
+  type        = number
+  description = "UTC maintenance day, where 1 is Monday and 7 is Sunday."
+  default     = 7
+
+  validation {
+    condition     = var.db_maintenance_day >= 1 && var.db_maintenance_day <= 7 && floor(var.db_maintenance_day) == var.db_maintenance_day
+    error_message = "db_maintenance_day must be a whole number from 1 through 7."
+  }
+}
+
+variable "db_maintenance_hour" {
+  type        = number
+  description = "UTC hour at which the one-hour Cloud SQL maintenance window begins."
+  default     = 8
+
+  validation {
+    condition     = var.db_maintenance_hour >= 0 && var.db_maintenance_hour <= 23 && floor(var.db_maintenance_hour) == var.db_maintenance_hour
+    error_message = "db_maintenance_hour must be a whole number from 0 through 23."
+  }
+}
+
+variable "db_maintenance_update_track" {
+  type        = string
+  description = "Cloud SQL maintenance rollout track."
+  default     = "stable"
+
+  validation {
+    condition     = contains(["canary", "stable", "week5"], var.db_maintenance_update_track)
+    error_message = "db_maintenance_update_track must be canary, stable, or week5."
+  }
 }
 
 variable "workload_deletion_protection" {

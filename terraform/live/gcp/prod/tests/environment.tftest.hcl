@@ -71,8 +71,35 @@ run "production_boundary" {
   }
 
   assert {
-    condition     = output.configuration.db_availability_type == "REGIONAL" && output.configuration.db_deletion_protection
-    error_message = "Production must use a regional, deletion-protected database."
+    condition = (
+      output.configuration.db_availability_type == "REGIONAL" &&
+      output.configuration.db_deletion_protection &&
+      output.database_policy.availability_type == "REGIONAL" &&
+      !output.database_policy.connectivity.public_ipv4 &&
+      output.database_policy.connectivity.ssl_mode == "ENCRYPTED_ONLY" &&
+      output.database_policy.storage.type == "PD_SSD" &&
+      output.database_policy.storage.autoresize &&
+      output.database_policy.backups.enabled &&
+      output.database_policy.backups.start_time_utc == "07:00" &&
+      output.database_policy.backups.retained_count == 8 &&
+      output.database_policy.backups.retention_unit == "COUNT" &&
+      output.database_policy.point_in_time_recovery.enabled &&
+      output.database_policy.point_in_time_recovery.transaction_log_retention_days == 7 &&
+      output.database_policy.maintenance.day_utc == 7 &&
+      output.database_policy.maintenance.hour_utc == 8 &&
+      output.database_policy.maintenance.update_track == "week5" &&
+      output.database_policy.query_insights.enabled &&
+      output.database_policy.query_insights.plans_per_minute == 5 &&
+      output.database_policy.query_insights.query_string_length == 1024 &&
+      output.database_policy.query_insights.record_application_tags &&
+      !output.database_policy.query_insights.record_client_address &&
+      output.database_policy.deletion_protection.terraform &&
+      output.database_policy.deletion_protection.api &&
+      output.database_policy.recovery_objectives.rpo_minutes == 5 &&
+      output.database_policy.recovery_objectives.rto_minutes == 120 &&
+      output.database_policy.recovery_objectives.status == "provisional-pending-p2.5-restore-benchmark"
+    )
+    error_message = "Production must enforce the complete regional, private, recoverable Cloud SQL policy."
   }
 
   assert {

@@ -4,11 +4,11 @@ These roots are the only supported entry points for deploying Jarvis on GCP.
 Each root hardcodes its environment identity, address space, and remote-state
 prefix while composing the reusable platform and private-network modules.
 
-| Root | State prefix | Workload / private-service CIDRs | Deletion protection | Raw transition |
-|---|---|---|---|---|
-| `dev` | `environments/dev` | `10.10.0.0/20` / `10.10.240.0/20` | Off for SQL, VMs, and batch job | 30 days |
-| `stage` | `environments/stage` | `10.20.0.0/20` / `10.20.240.0/20` | On for SQL, VMs, and batch job | 60 days |
-| `prod` | `environments/prod` | `10.30.0.0/20` / `10.30.240.0/20` | On for SQL, VMs, and batch job | 90 days |
+| Root | State prefix | Workload / private-service CIDRs | Cloud SQL | Maintenance track | Raw transition |
+|---|---|---|---|---|---|
+| `dev` | `environments/dev` | `10.10.0.0/20` / `10.10.240.0/20` | Zonal, deletion protection off | `canary` | 90 days |
+| `stage` | `environments/stage` | `10.20.0.0/20` / `10.20.240.0/20` | Zonal, deletion protection on | `stable` | 90 days |
+| `prod` | `environments/prod` | `10.30.0.0/20` / `10.30.240.0/20` | Regional HA, deletion protection on | `week5` | 90 days |
 
 Project IDs and the four data/log/scratch/backup buckets are explicit inputs.
 Use a distinct GCP project for
@@ -53,6 +53,8 @@ ADC plus short-lived service-account impersonation; never paste credential JSON
 or a GitHub token into them. Budgets notify but don't stop spending.
 The [storage-class runbook](../../../docs/storage-classes.md) defines the output
 mapping and staged migration for an environment that already contains logs.
+The [Cloud SQL runbook](../../../docs/cloud-sql.md) defines backup, PITR,
+maintenance, deletion-protection, rollout, and restore-benchmark expectations.
 
 ## Plan and apply
 

@@ -69,6 +69,30 @@ run "least_privilege_identity_contract" {
 
   assert {
     condition = (
+      !google_sql_database_instance.airflow.settings[0].ip_configuration[0].ipv4_enabled &&
+      google_sql_database_instance.airflow.settings[0].disk_autoresize &&
+      google_sql_database_instance.airflow.settings[0].disk_type == "PD_SSD" &&
+      google_sql_database_instance.airflow.settings[0].backup_configuration[0].enabled &&
+      google_sql_database_instance.airflow.settings[0].backup_configuration[0].point_in_time_recovery_enabled &&
+      google_sql_database_instance.airflow.settings[0].backup_configuration[0].transaction_log_retention_days == 7 &&
+      google_sql_database_instance.airflow.settings[0].backup_configuration[0].backup_retention_settings[0].retained_backups == 8 &&
+      google_sql_database_instance.airflow.settings[0].backup_configuration[0].backup_retention_settings[0].retention_unit == "COUNT" &&
+      google_sql_database_instance.airflow.settings[0].maintenance_window[0].day == 7 &&
+      google_sql_database_instance.airflow.settings[0].maintenance_window[0].hour == 8 &&
+      google_sql_database_instance.airflow.settings[0].maintenance_window[0].update_track == "stable" &&
+      google_sql_database_instance.airflow.settings[0].insights_config[0].query_insights_enabled &&
+      google_sql_database_instance.airflow.settings[0].insights_config[0].query_plans_per_minute == 5 &&
+      google_sql_database_instance.airflow.settings[0].insights_config[0].query_string_length == 1024 &&
+      google_sql_database_instance.airflow.settings[0].insights_config[0].record_application_tags &&
+      !google_sql_database_instance.airflow.settings[0].insights_config[0].record_client_address &&
+      google_sql_database_instance.airflow.deletion_protection &&
+      google_sql_database_instance.airflow.settings[0].deletion_protection_enabled
+    )
+    error_message = "Cloud SQL must enforce private access, storage growth, backups, PITR, maintenance, insights, and deletion safeguards."
+  }
+
+  assert {
+    condition = (
       google_compute_instance.control.service_account[0].email == google_service_account.roles["control"].email &&
       google_compute_instance.feed.service_account[0].email == google_service_account.roles["feed"].email &&
       google_compute_instance.notebook.service_account[0].email == google_service_account.roles["notebook"].email &&
@@ -310,4 +334,25 @@ run "duplicate_storage_boundaries_are_rejected" {
   }
 
   expect_failures = [var.backup_bucket_name]
+}
+
+run "production_database_requires_regional_ha" {
+  command = plan
+
+  variables {
+    env                  = "prod"
+    db_availability_type = "ZONAL"
+  }
+
+  expect_failures = [google_sql_database_instance.airflow]
+}
+
+run "backup_retention_must_cover_pitr_window" {
+  command = plan
+
+  variables {
+    db_backup_retained_count = 7
+  }
+
+  expect_failures = [google_sql_database_instance.airflow]
 }

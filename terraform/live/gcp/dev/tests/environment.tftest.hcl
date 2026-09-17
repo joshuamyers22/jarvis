@@ -71,8 +71,25 @@ run "development_boundary" {
   }
 
   assert {
-    condition     = output.configuration.db_availability_type == "ZONAL" && !output.configuration.db_deletion_protection
-    error_message = "Development must use its lower-cost database policy."
+    condition = (
+      output.configuration.db_availability_type == "ZONAL" &&
+      !output.configuration.db_deletion_protection &&
+      output.database_policy.availability_type == "ZONAL" &&
+      !output.database_policy.connectivity.public_ipv4 &&
+      output.database_policy.connectivity.ssl_mode == "ENCRYPTED_ONLY" &&
+      output.database_policy.storage.autoresize &&
+      output.database_policy.backups.enabled &&
+      output.database_policy.backups.start_time_utc == "05:00" &&
+      output.database_policy.backups.retained_count == 8 &&
+      output.database_policy.point_in_time_recovery.enabled &&
+      output.database_policy.point_in_time_recovery.transaction_log_retention_days == 7 &&
+      output.database_policy.maintenance.day_utc == 2 &&
+      output.database_policy.maintenance.hour_utc == 6 &&
+      output.database_policy.maintenance.update_track == "canary" &&
+      !output.database_policy.deletion_protection.terraform &&
+      !output.database_policy.deletion_protection.api
+    )
+    error_message = "Development must use the private, recoverable, canary-track database policy while remaining disposable."
   }
 
   assert {

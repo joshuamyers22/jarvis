@@ -71,8 +71,25 @@ run "staging_boundary" {
   }
 
   assert {
-    condition     = output.configuration.db_availability_type == "ZONAL" && output.configuration.db_deletion_protection
-    error_message = "Staging must keep deletion protection while using a zonal database."
+    condition = (
+      output.configuration.db_availability_type == "ZONAL" &&
+      output.configuration.db_deletion_protection &&
+      output.database_policy.availability_type == "ZONAL" &&
+      !output.database_policy.connectivity.public_ipv4 &&
+      output.database_policy.connectivity.ssl_mode == "ENCRYPTED_ONLY" &&
+      output.database_policy.storage.autoresize &&
+      output.database_policy.backups.enabled &&
+      output.database_policy.backups.start_time_utc == "06:00" &&
+      output.database_policy.backups.retained_count == 8 &&
+      output.database_policy.point_in_time_recovery.enabled &&
+      output.database_policy.point_in_time_recovery.transaction_log_retention_days == 7 &&
+      output.database_policy.maintenance.day_utc == 2 &&
+      output.database_policy.maintenance.hour_utc == 7 &&
+      output.database_policy.maintenance.update_track == "stable" &&
+      output.database_policy.deletion_protection.terraform &&
+      output.database_policy.deletion_protection.api
+    )
+    error_message = "Staging must keep the protected, private, stable-track database policy while remaining zonal."
   }
 
   assert {

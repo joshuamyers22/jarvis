@@ -52,7 +52,9 @@ declared through the reviewed, resource-scoped contract in the
 Each module produces the same outputs, which is where the abstraction does
 hold: `storage_uri`, `storage_locations`, `storage_contract`,
 `storage_lifecycle_policy`, `registry`,
-`batch_job_name`, `db_host`, and the identities each role runs as. Data, Airflow
+`batch_job_name`, `db_host`, and the identities each role runs as. GCP also
+emits `database_policy` as its explicit Cloud SQL availability and recovery
+contract; see the [Cloud SQL runbook](../docs/cloud-sql.md). Data, Airflow
 logs, scratch, and backups use distinct resource-level boundaries; see the
 [storage-class runbook](../docs/storage-classes.md). Feed those outputs into
 `.env` and the rest of the platform does not know or care which cloud it is on.

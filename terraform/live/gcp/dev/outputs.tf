@@ -58,6 +58,10 @@ output "db_connection_name" {
   value = module.platform.db_connection_name
 }
 
+output "database_policy" {
+  value = module.platform.database_policy
+}
+
 output "identities" {
   value = module.platform.identities
 }

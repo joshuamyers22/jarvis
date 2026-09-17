@@ -384,9 +384,15 @@ Goal: close the data-loss and credential gaps before deploying real workloads.
   provider-parity gap rather than claiming the three-version control.
   Terraform outputs and policy tests cover every provider, and exceptions require a
   documented legal, vendor, or reproducibility approval.
-- **P2.3 Harden Cloud SQL.** Use regional HA in production, private IP, automated
-  storage growth, maintenance windows, query insights, deletion protection, backups,
-  and PITR. Set explicit production RPO/RTO after a restore benchmark.
+- **P2.3 Harden Cloud SQL — complete locally.** Production now requires regional
+  HA, private encrypted connectivity, SSD automatic storage growth, eight daily
+  backups, seven days of PITR logs, and both Terraform and API deletion protection.
+  Explicit maintenance tracks promote updates through development, staging, and
+  production; Query Insights is bounded and avoids client-address capture.
+  Terraform exposes the effective database
+  contract and enforces backup/PITR and production-HA invariants. The provisional
+  five-minute RPO and two-hour RTO remain honestly marked pending the P2.5 staging
+  restore benchmark rather than being claimed as validated service levels.
 - **P2.4 Remove secrets from deployment files.** Retrieve the database credential,
   Fernet key, vendor credentials, and feed credentials at runtime through attached
   identity. Ensure `ctl deploy` transfers only non-secret configuration.

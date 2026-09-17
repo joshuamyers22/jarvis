@@ -232,6 +232,55 @@ output "db_connection_name" {
   value = google_sql_database_instance.airflow.connection_name
 }
 
+output "database_policy" {
+  description = "Effective Cloud SQL availability, recovery, maintenance, and observability contract."
+  value = {
+    engine            = google_sql_database_instance.airflow.database_version
+    tier              = google_sql_database_instance.airflow.settings[0].tier
+    availability_type = google_sql_database_instance.airflow.settings[0].availability_type
+    connectivity = {
+      public_ipv4     = google_sql_database_instance.airflow.settings[0].ip_configuration[0].ipv4_enabled
+      private_network = google_sql_database_instance.airflow.settings[0].ip_configuration[0].private_network
+      ssl_mode        = google_sql_database_instance.airflow.settings[0].ip_configuration[0].ssl_mode
+    }
+    storage = {
+      type       = google_sql_database_instance.airflow.settings[0].disk_type
+      autoresize = google_sql_database_instance.airflow.settings[0].disk_autoresize
+    }
+    backups = {
+      enabled        = google_sql_database_instance.airflow.settings[0].backup_configuration[0].enabled
+      start_time_utc = google_sql_database_instance.airflow.settings[0].backup_configuration[0].start_time
+      retained_count = google_sql_database_instance.airflow.settings[0].backup_configuration[0].backup_retention_settings[0].retained_backups
+      retention_unit = google_sql_database_instance.airflow.settings[0].backup_configuration[0].backup_retention_settings[0].retention_unit
+    }
+    point_in_time_recovery = {
+      enabled                        = google_sql_database_instance.airflow.settings[0].backup_configuration[0].point_in_time_recovery_enabled
+      transaction_log_retention_days = google_sql_database_instance.airflow.settings[0].backup_configuration[0].transaction_log_retention_days
+    }
+    maintenance = {
+      day_utc      = google_sql_database_instance.airflow.settings[0].maintenance_window[0].day
+      hour_utc     = google_sql_database_instance.airflow.settings[0].maintenance_window[0].hour
+      update_track = google_sql_database_instance.airflow.settings[0].maintenance_window[0].update_track
+    }
+    query_insights = {
+      enabled                 = google_sql_database_instance.airflow.settings[0].insights_config[0].query_insights_enabled
+      plans_per_minute        = google_sql_database_instance.airflow.settings[0].insights_config[0].query_plans_per_minute
+      query_string_length     = google_sql_database_instance.airflow.settings[0].insights_config[0].query_string_length
+      record_application_tags = google_sql_database_instance.airflow.settings[0].insights_config[0].record_application_tags
+      record_client_address   = google_sql_database_instance.airflow.settings[0].insights_config[0].record_client_address
+    }
+    deletion_protection = {
+      terraform = google_sql_database_instance.airflow.deletion_protection
+      api       = google_sql_database_instance.airflow.settings[0].deletion_protection_enabled
+    }
+    recovery_objectives = {
+      rpo_minutes = 5
+      rto_minutes = 120
+      status      = "provisional-pending-p2.5-restore-benchmark"
+    }
+  }
+}
+
 output "identities" {
   value = { for k, v in google_service_account.roles : k => v.email }
 }

@@ -40,6 +40,8 @@ resource, workload, and role under the
 Review the four-location [storage contract](storage-classes.md) before applying:
 the existing data location must remain in place, logs and scratch receive only
 their named workload identities, and backup storage has no runtime member.
+Review the [Cloud SQL production policy](cloud-sql.md) before changing database
+availability, backup, PITR, maintenance, Query Insights, or deletion settings.
 
 ```bash
 scripts/gcp-live.sh dev validate
@@ -113,7 +115,8 @@ and logs, then update remaining roles. Keep the previous tag for rollback.
 Schema changes need explicit forward and rollback plans; the CLI does not
 perform migrations.
 
-Regularly test database restoration, host rebuilds, notebook-volume recovery,
+Regularly test database restoration under the documented
+[Cloud SQL recovery objectives](cloud-sql.md#recovery-objectives), host rebuilds, notebook-volume recovery,
 versioned object recovery, and rollback to a known-good image SHA. Compute nodes
 should be disposable; required research data belongs in durable storage.
 

@@ -4,16 +4,23 @@ resource "google_sql_database_instance" "airflow" {
   region           = var.region
 
   settings {
-    tier              = var.db_tier
-    availability_type = var.db_availability_type
-    disk_autoresize   = true
-    disk_size         = 10
+    tier                        = var.db_tier
+    availability_type           = var.db_availability_type
+    deletion_protection_enabled = var.db_deletion_protection
+    disk_autoresize             = true
+    disk_size                   = 10
+    disk_type                   = "PD_SSD"
 
     backup_configuration {
       enabled                        = true
-      start_time                     = "07:00"
+      start_time                     = var.db_backup_start_time
       point_in_time_recovery_enabled = true
-      transaction_log_retention_days = 7
+      transaction_log_retention_days = var.db_transaction_log_retention_days
+
+      backup_retention_settings {
+        retained_backups = var.db_backup_retained_count
+        retention_unit   = "COUNT"
+      }
     }
 
     ip_configuration {
@@ -23,7 +30,17 @@ resource "google_sql_database_instance" "airflow" {
     }
 
     insights_config {
-      query_insights_enabled = true
+      query_insights_enabled  = true
+      query_plans_per_minute  = 5
+      query_string_length     = 1024
+      record_application_tags = true
+      record_client_address   = false
+    }
+
+    maintenance_window {
+      day          = var.db_maintenance_day
+      hour         = var.db_maintenance_hour
+      update_track = var.db_maintenance_update_track
     }
 
     user_labels = local.common_labels
@@ -33,6 +50,29 @@ resource "google_sql_database_instance" "airflow" {
   # protect task history; development remains intentionally disposable.
   deletion_protection = var.db_deletion_protection
 
+  lifecycle {
+    # Cloud SQL can grow this value outside Terraform. Never plan a destructive
+    # shrink back to the initial allocation after automatic storage growth.
+    ignore_changes = [settings[0].disk_size]
+
+    precondition {
+      condition     = var.db_backup_retained_count > var.db_transaction_log_retention_days
+      error_message = "Cloud SQL must retain at least one more daily backup than PITR log-retention days."
+    }
+
+    precondition {
+      condition = (
+        var.env != "prod" ||
+        (
+          var.db_availability_type == "REGIONAL" &&
+          var.db_deletion_protection &&
+          var.db_backup_retained_count >= 8 &&
+          var.db_transaction_log_retention_days == 7
+        )
+      )
+      error_message = "Production Cloud SQL must use regional HA, both deletion-protection layers, eight backups, and seven days of PITR logs."
+    }
+  }
 }
 
 resource "google_sql_database" "airflow" {
