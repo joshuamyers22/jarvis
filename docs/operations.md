@@ -40,6 +40,10 @@ resource, workload, and role under the
 Review the four-location [storage contract](storage-classes.md) before applying:
 the existing data location must remain in place, logs and scratch receive only
 their named workload identities, and backup storage has no runtime member.
+Review the generated [data ownership contract](data-ownership.md) with each
+group change. Update its source manifest, regenerate it with
+`make ownership-render`, and confirm `make ownership-check` passes before any
+matching IAM or data-migration change is applied.
 Review the [Cloud SQL production policy](cloud-sql.md) before changing database
 availability, backup, PITR, maintenance, Query Insights, or deletion settings.
 Seed and rotate credentials only through the

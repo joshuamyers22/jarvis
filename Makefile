@@ -2,7 +2,7 @@ IMAGE ?= research-platform
 TAG   ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
 CLOUD ?= gcp        # gcp | aws | azure -- which SDK stack goes in the image
 
-.PHONY: lock build test lint fmt shell clean
+.PHONY: lock build test lint fmt ownership-check ownership-render shell clean
 
 lock:            ## regenerate uv.lock (requires network)
 	uv lock
@@ -21,6 +21,12 @@ lint:
 
 fmt:
 	uv run ruff format . && uv run ruff check --fix .
+
+ownership-check:
+	uv run python scripts/data-ownership.py check
+
+ownership-render:
+	uv run python scripts/data-ownership.py render
 
 shell:
 	docker run --rm -it --env-file .env $(IMAGE):$(TAG) bash

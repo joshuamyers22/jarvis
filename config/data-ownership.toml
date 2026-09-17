@@ -1,0 +1,235 @@
+schema_version = 1
+contract_id = "jarvis-default"
+description = "Provider-neutral ownership and access expectations for Jarvis research data."
+review_cycle_days = 180
+
+[governance]
+contract_owner_group = "platform"
+change_approver_groups = ["platform", "data_governance"]
+exception_process = "docs/storage-classes.md#exceptions"
+
+# Group references are deliberately provider-neutral. Change the display name
+# and contact route to match a deployment's GitHub team, directory group, or
+# ticket queue, then run `make ownership-check`.
+[groups.platform]
+display_name = "Platform owners"
+contact = "team:platform-owners"
+responsibility = "Storage infrastructure, runtime access enforcement, and recovery operations."
+
+[groups.source_data]
+display_name = "Source data owners"
+contact = "team:source-data-owners"
+responsibility = "Source licensing, ingestion approval, quality, and replay authority."
+
+[groups.research]
+display_name = "Research data owners"
+contact = "team:research-data-owners"
+responsibility = "Derived datasets, published artifacts, and acceptable research use."
+
+[groups.data_governance]
+display_name = "Data governance reviewers"
+contact = "team:data-governance"
+responsibility = "Classification, quarantine decisions, exceptions, and retention review."
+
+[locations.data]
+description = "Durable, versioned research data boundary."
+terraform_output = "storage_locations.data"
+
+[locations.scratch]
+description = "Disposable intermediate-data boundary."
+terraform_output = "storage_locations.scratch"
+
+[locations.airflow_logs]
+description = "Airflow task-log boundary."
+terraform_output = "storage_locations.airflow_logs"
+
+[locations.backup]
+description = "Versioned recovery-evidence and backup boundary."
+terraform_output = "storage_locations.backup"
+
+# Actors are logical workload identities, not people or cloud-specific account
+# addresses. Provider Terraform maps these names to attached identities.
+[actors.control]
+display_name = "Airflow control workload"
+kind = "workload"
+identity_contract = "storage_contract.airflow_logs.workload_access.control"
+access_semantics = "Read and write only the Airflow log boundary."
+
+[actors.feed]
+display_name = "Feed ingestion workload"
+kind = "workload"
+identity_contract = "storage_contract.data.workload_access.feed"
+access_semantics = "Create ingestion objects; use immutable names where the provider cannot enforce create-only access."
+
+[actors.job]
+display_name = "Batch job workload"
+kind = "workload"
+identity_contract = "storage_contract.data.workload_access.job"
+access_semantics = "Read and write approved durable-data prefixes and scratch."
+
+[actors.notebook]
+display_name = "Interactive notebook workload"
+kind = "workload"
+identity_contract = "storage_contract.data.workload_access.notebook"
+access_semantics = "Read durable research data and read or write scratch."
+
+[actors.recovery]
+display_name = "Non-production recovery automation"
+kind = "automation"
+identity_contract = "recovery_contract"
+access_semantics = "Create immutable evidence in non-production; disabled in production."
+
+[[classes]]
+id = "raw"
+display_name = "Raw source data"
+location = "data"
+prefix = "raw/"
+owner_group = "source_data"
+steward_group = "data_governance"
+classification = "restricted"
+writers = ["feed", "job"]
+readers = ["job", "notebook"]
+
+[classes.retention]
+policy = "retain-current"
+summary = "Never automatically delete current raw objects; transition them to a colder tier after 90 days."
+transition_after_days = 90
+noncurrent_minimum_days = 30
+
+[classes.recovery]
+required = true
+method = "object-versioning-and-source-replay"
+expectation = "Restore a prior object generation or replay the immutable source."
+test_frequency = "quarterly"
+
+[[classes]]
+id = "derived"
+display_name = "Derived research data"
+location = "data"
+prefix = "derived/"
+owner_group = "research"
+steward_group = "platform"
+classification = "internal"
+writers = ["job"]
+readers = ["job", "notebook"]
+
+[classes.retention]
+policy = "retain-until-approved"
+summary = "Retain current outputs until the research owner approves removal; keep superseded versions for at least 30 days."
+noncurrent_minimum_days = 30
+
+[classes.recovery]
+required = true
+method = "object-versioning-or-recompute"
+expectation = "Restore a prior version when available, otherwise reproduce it from raw data and pinned code."
+test_frequency = "quarterly-sample"
+
+[[classes]]
+id = "artifact"
+display_name = "Published research artifacts"
+location = "data"
+prefix = "artifacts/"
+owner_group = "research"
+steward_group = "data_governance"
+classification = "internal"
+writers = ["job"]
+readers = ["job", "notebook"]
+
+[classes.retention]
+policy = "release-controlled"
+summary = "Retain released artifacts until the research owner approves supersession or withdrawal."
+noncurrent_minimum_days = 30
+
+[classes.recovery]
+required = true
+method = "object-versioning-and-rebuild"
+expectation = "Restore the released generation or rebuild it from pinned inputs and code."
+test_frequency = "quarterly-sample"
+
+[[classes]]
+id = "scratch"
+display_name = "Temporary scratch data"
+location = "scratch"
+prefix = ""
+owner_group = "platform"
+steward_group = "research"
+classification = "internal"
+writers = ["job", "notebook"]
+readers = ["job", "notebook"]
+
+[classes.retention]
+policy = "automatic-expiry"
+summary = "Delete objects automatically after 14 days; scratch is never a system of record."
+delete_after_days = 14
+
+[classes.recovery]
+required = false
+method = "recompute"
+expectation = "Recreate from durable inputs; no restore guarantee applies."
+test_frequency = "not-required"
+
+[[classes]]
+id = "quarantine"
+display_name = "Quarantined source data"
+location = "data"
+prefix = "quarantine/"
+owner_group = "data_governance"
+steward_group = "source_data"
+classification = "restricted"
+writers = ["feed", "job"]
+readers = ["job", "notebook"]
+
+[classes.retention]
+policy = "review-and-disposition"
+summary = "Review within 30 days, then promote, retain under an approved exception, or delete through a reviewed change."
+review_after_days = 30
+noncurrent_minimum_days = 30
+
+[classes.recovery]
+required = true
+method = "object-versioning-or-source-replay"
+expectation = "Recover a reviewed generation while an investigation is open; otherwise replay the source."
+test_frequency = "quarterly-sample"
+
+[[classes]]
+id = "logs"
+display_name = "Airflow task logs"
+location = "airflow_logs"
+prefix = ""
+owner_group = "platform"
+steward_group = "data_governance"
+classification = "internal"
+writers = ["control"]
+readers = ["control"]
+
+[classes.retention]
+policy = "automatic-expiry"
+summary = "Delete task logs automatically after 90 days."
+delete_after_days = 90
+
+[classes.recovery]
+required = false
+method = "rerun-or-operational-evidence"
+expectation = "Rerun the task when possible; preserve incident evidence separately when required."
+test_frequency = "not-required"
+
+[[classes]]
+id = "backup"
+display_name = "Backup and recovery evidence"
+location = "backup"
+prefix = ""
+owner_group = "platform"
+steward_group = "data_governance"
+classification = "restricted"
+writers = ["recovery"]
+readers = []
+
+[classes.retention]
+policy = "retain-until-approved"
+summary = "No automatic deletion; retention changes require recovery-policy approval."
+
+[classes.recovery]
+required = true
+method = "versioned-backup-and-restore-drill"
+expectation = "Preserve immutable drill evidence and validate restoration through the quarterly staging exercise."
+test_frequency = "quarterly"

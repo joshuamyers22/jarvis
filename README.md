@@ -83,6 +83,7 @@ docker/           shared image and role-dispatch entrypoint
 terraform/        parallel GCP, AWS, and Azure modules
 ctl/              build, push, deploy, logs, shell, and run commands
 tests/            architecture, job, provider, and DAG checks
+config/           provider-neutral ownership and governance contracts
 docs/             setup, design, notebook, and operations guides
 ```
 
@@ -93,6 +94,7 @@ docs/             setup, design, notebook, and operations guides
 - [Notebook storage and cross-machine workflows](docs/notebooks.md)
 - [Deployment and operations](docs/operations.md)
 - [Runtime secrets](docs/runtime-secrets.md)
+- [Data ownership contract](docs/data-ownership.md)
 - [Recovery drills](docs/recovery-drills.md)
 - [Supported build environment](docs/build-environment.md)
 - [Production boundary decision](docs/adr/0001-production-boundaries.md)

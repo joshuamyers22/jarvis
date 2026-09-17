@@ -418,8 +418,16 @@ Goal: close the data-loss and credential gaps before deploying real workloads.
   workflow artifact. The automation, policy tests, and runbook are complete;
   the provisional recovery objective becomes accepted only after the first live
   staging evidence bundle reports `passed`.
-- **P2.6 Define data ownership.** Document raw, derived, artifact, scratch, quarantine,
-  and log prefixes; owners; retention; writers; readers; and recovery expectations.
+- **P2.6 Define data ownership — complete locally.** A provider-neutral TOML
+  manifest now defines raw, derived, artifact, scratch, quarantine, log, and
+  backup boundaries with accountable owner and steward groups, workload readers
+  and writers, retention, classification, and recovery expectations. Stable
+  logical group IDs can be remapped to different teams or contact systems
+  without changing workload identities. A standard-library validator rejects
+  missing classes, unknown references, unsafe or overlapping prefixes, invalid
+  retention values, and stale generated documentation; tests and CI enforce the
+  contract. Access changes still require a separately reviewed Terraform IAM
+  change, so ownership edits cannot silently grant data-plane access.
 
 Exit gate:
 

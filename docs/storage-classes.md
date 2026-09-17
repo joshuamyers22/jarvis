@@ -98,6 +98,23 @@ Runtime configuration maps `storage_uri` to `RP_STORAGE_URI`, `scratch_uri` to
 automation consumes `backup_uri` only for P2.5 evidence; do not attach a runtime
 identity as a shortcut.
 
+## Data ownership
+
+The physical storage and lifecycle settings on this page are paired with the
+[data ownership contract](data-ownership.md). Its source is the editable,
+provider-neutral [`config/data-ownership.toml`](../config/data-ownership.toml)
+manifest. It assigns raw, derived, artifact, scratch, quarantine, log, and
+backup boundaries to accountable groups; records readers, writers, retention,
+and recovery expectations; and keeps human ownership separate from cloud
+workload identities.
+
+Group IDs are stable logical roles rather than hard-coded people or provider
+accounts. A deployment can map them to its own GitHub teams, directory groups,
+or ticket queues by changing the group registry and class assignments. Run
+`make ownership-render` after changes and `make ownership-check` before review.
+Changes to readers, writers, locations, or prefixes also require a matching IAM
+change; editing the ownership manifest never grants cloud access by itself.
+
 ## Provider inputs
 
 Each GCP live env file must provide four globally unique bucket names:
