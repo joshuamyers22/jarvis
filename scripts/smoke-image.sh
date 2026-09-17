@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Smoke all five runtime roles from one provider-specific Jarvis image.
+# Smoke every runtime role, including the explicit database migrator, from one
+# provider-specific Jarvis image.
 
 set -euo pipefail
 
@@ -92,6 +93,9 @@ docker run -d --name "$database" --network "$network" \
   --env POSTGRES_DB=airflow \
   postgres:16@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94 >/dev/null
 wait_for PostgreSQL docker exec "$database" pg_isready -U airflow -d airflow
+
+docker run --rm --network "$network" \
+  "${common_env[@]}" "$image" migration >/dev/null
 
 docker run -d --name "$scheduler" --network "$network" \
   "${common_env[@]}" "$image" scheduler >/dev/null

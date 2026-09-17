@@ -51,6 +51,10 @@ Use `ctl logs` and `ctl shell` for normal access. Do not run an independent
 `docker compose up` on GCP; that creates a second lifecycle owner and bypasses
 the restart budget.
 
+The control unit is intentionally stopped during the explicit
+[database migration workflow](database-migrations.md) and restarted only by the
+subsequent deployment of the exact migrated application tag.
+
 ## Reboot recovery drill
 
 Run this in development and staging after every supervisor or host-image change:

@@ -4,6 +4,7 @@
 #
 #   docker run IMAGE scheduler
 #   docker run IMAGE api-server
+#   docker run IMAGE migration
 #   docker run IMAGE jupyter
 #   docker run IMAGE feed
 #   docker run IMAGE job pull_ohlcv --date 2026-08-11
@@ -26,16 +27,42 @@ wait_for_db() {
   exit 1
 }
 
+wait_for_migrations() {
+  echo "[entrypoint] waiting for explicit metadata migration"
+  airflow db check-migrations --migration-wait-timeout 60
+}
+
 case "${1:-}" in
   scheduler)
     wait_for_db
-    airflow db migrate          # idempotent; safe on every start
+    wait_for_migrations
     exec airflow scheduler
     ;;
 
   api-server)
     wait_for_db
+    wait_for_migrations
     exec airflow api-server --host 0.0.0.0 --port 8080
+    ;;
+
+  migration-preflight)
+    wait_for_db
+    exec python -m ctl.database_migration preflight
+    ;;
+
+  migration-current)
+    wait_for_db
+    exec python -m ctl.database_migration current
+    ;;
+
+  migration)
+    wait_for_db
+    python -m ctl.database_migration preflight
+    echo "[entrypoint] applying the candidate image's migration graph"
+    timeout --foreground --kill-after=30s 1800s \
+      airflow db migrate --use-migration-files
+    airflow db check-migrations --migration-wait-timeout 60
+    exec python -m ctl.database_migration current
     ;;
 
   jupyter)

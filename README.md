@@ -13,7 +13,8 @@ AWS, or Azure.
 
 ## Why Jarvis
 
-- **One image, five roles:** scheduler, API server, notebook, feed, and job.
+- **One image, five workload roles:** scheduler, API server, notebook, feed, and
+  job, plus a one-off release migrator from that exact image.
 - **Portable jobs:** `jobs/` modules run from a terminal, notebook, scheduler,
   or batch service without importing Airflow.
 - **Elastic compute:** Airflow dispatches work; it does not perform the work.
@@ -81,7 +82,7 @@ dags/             Airflow scheduling, dispatch, and output verification
 compose/          control, feed, and notebook service definitions
 docker/           shared image and role-dispatch entrypoint
 terraform/        parallel GCP, AWS, and Azure modules
-ctl/              build, push, deploy, logs, shell, and run commands
+ctl/              build, migrate, deploy, logs, shell, and run commands
 tests/            architecture, job, provider, and DAG checks
 config/           provider-neutral ownership and governance contracts
 docs/             setup, design, notebook, and operations guides
@@ -99,6 +100,7 @@ docs/             setup, design, notebook, and operations guides
 - [Supported build environment](docs/build-environment.md)
 - [GCP host-image build and replacement](docs/host-images.md)
 - [GCP service supervision and recovery drills](docs/service-supervision.md)
+- [Airflow database migration workflow](docs/database-migrations.md)
 - [Production boundary decision](docs/adr/0001-production-boundaries.md)
 - [Production functionality plan](PRODUCTION_PLAN.md)
 - [Terraform provider guide](terraform/README.md)

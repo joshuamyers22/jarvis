@@ -80,11 +80,31 @@ def test_gcp_systemd_is_the_bounded_compose_lifecycle_owner() -> None:
     assert "metadata.google.internal" in supervisor
     assert "--connect-timeout 2" in supervisor
     assert "timeout --foreground" in supervisor
-    assert 'label=com.docker.compose.project=jarvis-${role}' in supervisor
+    assert "label=com.docker.compose.project=jarvis-${role}" in supervisor
     assert "systemd_compose_file" in supervisor
     assert "restart: always" in base_compose
     assert base_compose.count("restart: unless-stopped") == 2
     assert systemd_compose.count('restart: "no"') == 4
+
+
+def test_database_migration_has_one_explicit_owner() -> None:
+    entrypoint = Path("docker/entrypoint.sh").read_text()
+    compose = Path("compose/control.yml").read_text()
+    supervisor = Path("packer/gcp/files/jarvis-compose").read_text()
+    dependencies = Path("pyproject.toml").read_text()
+    scheduler_case = entrypoint.split("  scheduler)", 1)[1].split("    ;;", 1)[0]
+
+    assert "airflow db migrate" not in scheduler_case
+    assert "wait_for_migrations" in scheduler_case
+    assert "airflow db migrate --use-migration-files" in entrypoint
+    assert "timeout --foreground --kill-after=30s 1800s" in entrypoint
+    assert 'profiles: ["migration"]' in compose
+    assert 'command: ["migration"]' in compose
+    assert "migration-preflight" in supervisor
+    assert "migration-current" in supervisor
+    assert "apache-airflow==3.3.*" in dependencies
+    assert ".env.migration-pending" in Path("ctl/commands/migrate.py").read_text()
+    assert ".env.migration-pending" in Path("ctl/commands/deploy.py").read_text()
 
 
 def test_host_image_credentials_remain_in_ignored_env_file() -> None:

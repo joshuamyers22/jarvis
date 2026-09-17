@@ -128,8 +128,10 @@ uv run ctl run pull_ohlcv --date 2026-08-11 --remote
 
 Validate changes outside production, deploy one immutable tag, verify storage
 and logs, then update remaining roles. Keep the previous tag for rollback.
-Schema changes need explicit forward and rollback plans; the CLI does not
-perform migrations.
+Schema changes use the explicit, single-owner
+[database migration workflow](database-migrations.md): migrate with the candidate
+image, then deploy that exact tag. Never restore service with an older image
+against an upgraded schema without a verified compatibility or database rollback.
 
 The scheduled P2.5 workflow tests database PITR, versioned-object recovery,
 Terraform-state recovery, and notebook-volume restoration each quarter under

@@ -49,6 +49,7 @@ provider's IAM, networking, and compute models are materially different.
 |---|---|
 | `scheduler` | Airflow scheduler |
 | `api-server` | Airflow API server and UI |
+| `migration` | One-off, advisory-locked Airflow metadata migration |
 | `jupyter` | JupyterLab |
 | `feed` | Streaming feed process |
 | `job <module> ...` | A single batch job |
@@ -81,6 +82,8 @@ provider mappings, and migration requirements.
 - DAG dispatch lives in `dags/_providers.py` with shared signatures.
 - A partition's success marker is written after its data.
 - Production services deploy an immutable Git SHA tag.
+- Airflow schema changes run only through the candidate image's explicit
+  migration role; schedulers and API servers never migrate on boot.
 
 Architecture and DAG tests protect these boundaries.
 

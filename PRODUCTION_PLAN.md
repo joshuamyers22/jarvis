@@ -439,9 +439,10 @@ Exit gate:
 
 Goal: turn the current SSH/Compose scaffold into a repeatable service deployment.
 
-Implementation status (2026-09-17): P3.1 and P3.2 are implemented and locally
-validated. Live image replacement, reboot recovery, and container-crash drills
-remain environment evidence; P3.3 through P3.6 are not yet complete.
+Implementation status (2026-09-17): P3.1 through P3.3 are implemented and
+locally validated. Live image replacement, service recovery, and database
+migration/rollback drills remain environment evidence; P3.4 through P3.6 are
+not yet complete.
 
 - **P3.1 Replace mutable VM bootstrap — complete locally.** A pinned Packer build
   now creates a private, Shielded Debian 12 image with exact Docker/Compose and
@@ -466,8 +467,18 @@ remain environment evidence; P3.3 through P3.6 are not yet complete.
   preserve the existing AWS/Azure recovery policy. Tests enforce the lifecycle-owner,
   IAM, activation, and health contract. Live reboot and crash-drill evidence is
   still required under the service-supervision runbook.
-- **P3.3 Add database migration workflow.** Run Airflow database migrations as an
-  explicit, single-owner release step with compatibility checks and a rollback plan.
+- **P3.3 Add database migration workflow — complete locally.** Scheduler and API
+  boot no longer mutate schema. A profiled candidate-image service performs a
+  JSON Alembic-ancestry preflight, stops control only after compatibility passes,
+  applies migration files under Airflow 3.3's PostgreSQL advisory migration lock,
+  verifies every migration head, and leaves control stopped until the exact tag
+  is deployed. Control deployment uses a separate candidate tag and refuses to
+  promote or activate it unless the schema is already current. Production
+  requires a backup/PITR evidence reference; the runbook defines failure handling,
+  database-restore rollback, downgrade restrictions, and a concurrent-owner
+  staging drill. CI tests compatibility states and initializes a blank PostgreSQL
+  database through the migration role before smoke-testing services. Live lock,
+  migration, and rollback evidence is still required.
 - **P3.4 Make deploys transactional.** Extend `ctl` with `plan`, `status`, `doctor`,
   and `rollback`; verify image digest, provider, schema compatibility, health, remote
   logs, and synthetic output before declaring success.

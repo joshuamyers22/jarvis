@@ -45,6 +45,53 @@ def _activate_gcp_service(host: str, role: str) -> None:
     )
 
 
+def _check_database_compatibility(host: str, cloud: str, remote_dir: str) -> None:
+    """Prove the candidate control image matches the already-migrated schema."""
+    sh(
+        [
+            "ssh",
+            host,
+            (
+                f"if test -f {remote_dir}/.env.migration-pending; then "
+                f"cmp -s {remote_dir}/.env.candidate-tag "
+                f"{remote_dir}/.env.migration-pending || "
+                "{ echo 'candidate tag differs from pending migration' >&2; exit 1; }; "
+                "fi"
+            ),
+        ]
+    )
+    if cloud == "gcp":
+        sh(
+            [
+                "ssh",
+                host,
+                "sudo /usr/local/sbin/jarvis-compose migration-current control",
+            ]
+        )
+        return
+
+    compose_cmd = (
+        "compose() { if docker compose version >/dev/null 2>&1; "
+        'then docker compose "$@"; else docker-compose "$@"; fi; }; compose'
+    )
+    flags = (
+        f"--env-file {remote_dir}/runtime.env "
+        f"--env-file {remote_dir}/.env.candidate-tag "
+        f"-f {remote_dir}/compose/control.yml"
+    )
+    sh(["ssh", host, f"cd {remote_dir} && {compose_cmd} {flags} pull migration"])
+    sh(
+        [
+            "ssh",
+            host,
+            (
+                f"cd {remote_dir} && {compose_cmd} {flags} "
+                "run --rm --no-deps migration migration-current"
+            ),
+        ]
+    )
+
+
 def _compose_files(
     role: str,
     env: dict[str, str],
@@ -219,19 +266,41 @@ def deploy(
                 ]
             )
             sh(["rsync", "-az", str(runtime_env), f"{host}:{remote_dir}/runtime.env"])
-            # The one place the tag is written.
-            sh(["ssh", host, f"printf 'IMAGE_TAG={resolved}\\n' > {remote_dir}/.env.tag"])
+            # Control remains on its active tag until the candidate proves its
+            # schema is current. Other roles do not consume the metadata DB.
+            tag_name = ".env.candidate-tag" if name == "control" else ".env.tag"
+            quoted_tag = shlex.quote(resolved)
+            sh(
+                [
+                    "ssh",
+                    host,
+                    f"printf 'IMAGE_TAG=%s\\n' {quoted_tag} > {remote_dir}/{tag_name}",
+                ]
+            )
             # Remove the legacy full-env payload on the first P2.4 deployment.
             sh(
                 [
                     "ssh",
                     host,
                     (
-                        f"chmod 600 {remote_dir}/runtime.env {remote_dir}/.env.tag && "
+                        f"chmod 600 {remote_dir}/runtime.env {remote_dir}/{tag_name} && "
                         f"rm -f {remote_dir}/.env"
                     ),
                 ]
             )
+
+            if name == "control":
+                _check_database_compatibility(host, cloud, remote_dir)
+                sh(
+                    [
+                        "ssh",
+                        host,
+                        (
+                            f"mv {remote_dir}/.env.candidate-tag {remote_dir}/.env.tag && "
+                            f"chmod 600 {remote_dir}/.env.tag"
+                        ),
+                    ]
+                )
 
             if cloud == "gcp":
                 _activate_gcp_service(host, name)
@@ -260,6 +329,8 @@ def deploy(
                         ),
                     ]
                 )
+            if name == "control":
+                sh(["ssh", host, f"rm -f {remote_dir}/.env.migration-pending"])
             eprint(f"    {name} is on {resolved}")
 
     if update_batch and ("control" in targets or role == "all"):

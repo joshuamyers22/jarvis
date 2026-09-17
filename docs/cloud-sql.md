@@ -76,6 +76,10 @@ five-week track. For a notified maintenance release:
 4. After maintenance, verify Cloud SQL health, Airflow scheduler heartbeats,
    database migrations, task-log delivery, and one synthetic DAG.
 
+Application schema changes follow the separate, single-owner
+[Airflow database migration runbook](database-migrations.md). Cloud SQL
+maintenance completion does not authorize or imply an application migration.
+
 Do not disable either production deletion-protection layer as routine cleanup.
 An approved break-glass change must first capture a successful backup and restore
 evidence, identify the exact instance, obtain two-person review, and apply the

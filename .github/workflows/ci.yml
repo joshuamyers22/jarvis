@@ -29,6 +29,7 @@ jobs:
       - run: uv run ruff check .
       - run: uv run mypy jobs ctl scripts/data_ownership.py scripts/gcp_recovery_drill.py
       - run: uv run python scripts/data-ownership.py check
+      - run: bash -n docker/entrypoint.sh scripts/smoke-image.sh
       - run: uv run pytest -q
 
   terraform:

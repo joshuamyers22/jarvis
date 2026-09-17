@@ -42,6 +42,39 @@ def test_gcp_service_activation_is_enabled_restarted_and_health_gated(
     ]
 
 
+def test_gcp_control_candidate_is_checked_before_activation(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    calls: list[list[str]] = []
+    monkeypatch.setattr(deploy, "sh", lambda command: calls.append(command))
+
+    deploy._check_database_compatibility("operator@control", "gcp", "/opt/research/control")
+
+    assert len(calls) == 2
+    assert ".env.migration-pending" in calls[0][2]
+    assert calls[1] == [
+        "ssh",
+        "operator@control",
+        "sudo /usr/local/sbin/jarvis-compose migration-current control",
+    ]
+
+
+def test_portable_control_candidate_uses_one_off_migration_service(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    calls: list[list[str]] = []
+    monkeypatch.setattr(deploy, "sh", lambda command: calls.append(command))
+
+    deploy._check_database_compatibility("operator@control", "aws", "/opt/research/control")
+
+    assert len(calls) == 3
+    assert ".env.migration-pending" in calls[0][2]
+    assert calls[1][:2] == ["ssh", "operator@control"]
+    assert ".env.candidate-tag" in calls[1][2]
+    assert calls[1][2].endswith("pull migration")
+    assert calls[2][2].endswith("run --rm --no-deps migration migration-current")
+
+
 def test_notebook_efs_requires_an_absolute_mount() -> None:
     with raises(typer.Exit):
         deploy._compose_files(

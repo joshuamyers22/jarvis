@@ -75,6 +75,14 @@ x-airflow-common: &airflow-common
     options: {max-size: "10m", max-file: "3"}
 
 services:
+  # One-off release step. The profile prevents normal `compose up` from ever
+  # making a second migration owner alongside ctl's explicit workflow.
+  migration:
+    <<: *airflow-common
+    command: ["migration"]
+    restart: "no"
+    profiles: ["migration"]
+
   scheduler:
     <<: *airflow-common
     command: ["scheduler"]

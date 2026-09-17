@@ -1,5 +1,5 @@
 # =============================================================================
-# One image, five roles: scheduler | api-server | jupyter | feed | job
+# One image: five workload roles plus the one-off database migration role.
 #
 # Layer order is cheapest-changing first, so editing a job module rebuilds only
 # the final COPY rather than the dependency solve.
