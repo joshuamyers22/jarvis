@@ -23,7 +23,7 @@ dependencies = [
   # --- io ------------------------------------------------------------------
   "httpx>=0.27",
   # google-genai (via the GCP provider) currently requires websockets <17.
-  "websockets>=12.0,<17",
+  "websockets>=12.0,<18",
   "tenacity>=8.3",
   # --- config / cli --------------------------------------------------------
   "pydantic>=2.7",
