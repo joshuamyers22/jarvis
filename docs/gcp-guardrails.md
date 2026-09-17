@@ -9,9 +9,10 @@ policies.
 ## Terraform-managed controls
 
 Every live root enables the APIs used by its platform and network modules. The
-combined contract contains 17 services, including Compute, DNS, IAP, Cloud SQL,
-Cloud Run, Artifact Registry, IAM, Service Usage, Logging, Monitoring, Cloud
-Billing, and Billing Budgets. APIs use `disable_on_destroy = false` so removing
+combined contract contains 19 services, including Compute, DNS, IAP, Cloud SQL,
+Cloud Run, Artifact Registry, Cloud Storage, BigQuery, IAM, Service Usage,
+Logging, Monitoring, Cloud Billing, and Billing Budgets. APIs use
+`disable_on_destroy = false` so removing
 an environment doesn't disable an API needed by retained evidence.
 
 All resources that support labels receive provider defaults and explicit module

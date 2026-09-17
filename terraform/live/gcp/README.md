@@ -29,6 +29,10 @@ quota warning/exceeded alerts. Complete the external billing IAM, notification
 verification, and organization-policy steps in the
 [guardrail runbook](../../../docs/gcp-guardrails.md) before applying.
 
+Cross-project data access is empty by default. The only supported exceptions
+are explicit resource declarations in the environment's private env file; see
+the [data-access policy and approval procedure](../../../docs/gcp-data-access.md).
+
 ## Configure an environment
 
 P1.1 must be applied first so `JARVIS_TFSTATE_BUCKET` exists and the deployer
@@ -42,7 +46,8 @@ chmod 600 terraform/live/gcp/dev/.env.live
 
 Repeat for `stage` and `prod` only when those environments are ready. Env files
 contain Terraform inputs, named deployer/operator principals, immutable GitHub
-IDs, approved budget inputs, alert routing, and credential references. Prefer
+IDs, approved budget inputs, alert routing, cross-project data declarations, and
+credential references. Prefer
 ADC plus short-lived service-account impersonation; never paste credential JSON
 or a GitHub token into them. Budgets notify but don't stop spending.
 

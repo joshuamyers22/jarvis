@@ -46,6 +46,10 @@ output "iam_contract" {
   value = module.platform.iam_contract
 }
 
+output "data_access_contract" {
+  value = module.platform.data_access_contract
+}
+
 output "guardrails" {
   value = merge(module.platform.guardrails, {
     enabled_services = sort(tolist(setunion(

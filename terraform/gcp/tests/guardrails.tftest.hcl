@@ -64,6 +64,7 @@ run "project_guardrail_contract" {
     condition = toset(output.guardrails.enabled_services) == toset([
       "artifactregistry.googleapis.com",
       "billingbudgets.googleapis.com",
+      "bigquery.googleapis.com",
       "cloudbilling.googleapis.com",
       "cloudresourcemanager.googleapis.com",
       "iam.googleapis.com",
@@ -74,6 +75,7 @@ run "project_guardrail_contract" {
       "secretmanager.googleapis.com",
       "serviceusage.googleapis.com",
       "sqladmin.googleapis.com",
+      "storage.googleapis.com",
       "sts.googleapis.com",
     ])
     error_message = "Every platform, identity, billing, logging, and monitoring API must be explicit."

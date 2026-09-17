@@ -27,6 +27,7 @@ locals {
   platform_services = toset([
     "artifactregistry.googleapis.com",
     "billingbudgets.googleapis.com",
+    "bigquery.googleapis.com",
     "cloudbilling.googleapis.com",
     "cloudresourcemanager.googleapis.com",
     "iam.googleapis.com",
@@ -37,6 +38,7 @@ locals {
     "secretmanager.googleapis.com",
     "serviceusage.googleapis.com",
     "sqladmin.googleapis.com",
+    "storage.googleapis.com",
     "sts.googleapis.com",
   ])
 }

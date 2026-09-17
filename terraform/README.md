@@ -39,6 +39,9 @@ the [GCP identity runbook](../docs/gcp-identity.md) for the one-time handoff.
 Its APIs, audit logs, budget, quota alerts, deletion policy, and external
 organization requirements are documented in the
 [GCP guardrail runbook](../docs/gcp-guardrails.md).
+Cross-project buckets and BigQuery datasets remain denied by default and are
+declared through the reviewed, resource-scoped contract in the
+[GCP data-access runbook](../docs/gcp-data-access.md).
 
 Each module produces the same outputs, which is where the abstraction does
 hold: `storage_uri`, `registry`, `batch_job_name`, `db_host`, and the identities

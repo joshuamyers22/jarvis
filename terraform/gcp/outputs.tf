@@ -78,6 +78,55 @@ output "guardrails" {
   }
 }
 
+output "data_access_contract" {
+  value = {
+    default_deny = length(var.shared_storage_buckets) == 0 && length(var.shared_bigquery_datasets) == 0
+    storage = {
+      for bucket, config in var.shared_storage_buckets : bucket => {
+        project_id         = config.project_id
+        source_environment = config.source_environment
+        location           = config.location
+        owner              = config.owner
+        classification     = config.classification
+        approval_id        = config.approval_id
+        review_on          = config.review_on
+        grants = {
+          for workload, access in config.workload_access : workload => {
+            access = access
+            role   = google_storage_bucket_iam_member.shared_data["${bucket}/${workload}"].role
+            member = google_storage_bucket_iam_member.shared_data["${bucket}/${workload}"].member
+          }
+        }
+      }
+    }
+    bigquery = {
+      for alias, config in var.shared_bigquery_datasets : alias => {
+        project_id         = config.project_id
+        dataset_id         = config.dataset_id
+        source_environment = config.source_environment
+        location           = config.location
+        owner              = config.owner
+        classification     = config.classification
+        approval_id        = config.approval_id
+        review_on          = config.review_on
+        grants = {
+          for workload, access in config.workload_access : workload => {
+            access = access
+            role   = google_bigquery_dataset_iam_member.shared_data["${alias}/${workload}"].role
+            member = google_bigquery_dataset_iam_member.shared_data["${alias}/${workload}"].member
+          }
+        }
+      }
+    }
+    bigquery_job_users = {
+      for workload, binding in google_project_iam_member.shared_bigquery_job_user :
+      workload => binding.member
+    }
+    prohibited_principals = ["control", "ci", "deployer", "operators"]
+    policy_owner          = "source data owner approves; Jarvis Terraform manages only declared member grants"
+  }
+}
+
 output "storage_uri" {
   value = "gs://${google_storage_bucket.data.name}"
 }
@@ -130,11 +179,15 @@ output "iam_contract" {
       iap_condition    = google_project_iam_member.operator_iap_ssh[sort(tolist(var.operator_principals))[0]].condition[0].expression
     }
     runtime_project_roles = {
-      control  = [google_project_iam_member.control_sql_client.role]
-      job      = []
-      feed     = []
-      notebook = []
-      ci       = []
+      control = [google_project_iam_member.control_sql_client.role]
+      job = contains(local.bigquery_job_workloads, "job") ? [
+        google_project_iam_member.shared_bigquery_job_user["job"].role,
+      ] : []
+      feed = []
+      notebook = contains(local.bigquery_job_workloads, "notebook") ? [
+        google_project_iam_member.shared_bigquery_job_user["notebook"].role,
+      ] : []
+      ci = []
     }
     resource_roles = {
       control = sort([

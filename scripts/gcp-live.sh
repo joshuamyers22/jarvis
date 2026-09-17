@@ -66,6 +66,8 @@ required=(
   TF_VAR_github_repository
   TF_VAR_github_repository_id
   TF_VAR_github_repository_owner_id
+  TF_VAR_shared_storage_buckets
+  TF_VAR_shared_bigquery_datasets
 )
 for name in "${required[@]}"; do
   value=${!name:-}

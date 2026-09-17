@@ -66,6 +66,37 @@ variable "github_repository_owner_id" {
   description = "Immutable numeric GitHub owner ID."
 }
 
+variable "shared_storage_buckets" {
+  type = map(object({
+    project_id         = string
+    source_environment = string
+    location           = string
+    owner              = string
+    classification     = string
+    approval_id        = string
+    review_on          = string
+    workload_access    = map(string)
+  }))
+  description = "Approved cross-project Cloud Storage grants. Empty means default deny."
+  default     = {}
+}
+
+variable "shared_bigquery_datasets" {
+  type = map(object({
+    project_id         = string
+    dataset_id         = string
+    source_environment = string
+    location           = string
+    owner              = string
+    classification     = string
+    approval_id        = string
+    review_on          = string
+    workload_access    = map(string)
+  }))
+  description = "Approved cross-project BigQuery grants. Empty means default deny."
+  default     = {}
+}
+
 variable "db_tier" {
   type    = string
   default = "db-g1-small"

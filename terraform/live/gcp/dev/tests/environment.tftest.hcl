@@ -63,15 +63,27 @@ run "development_boundary" {
 
   assert {
     condition = (
-      length(output.guardrails.enabled_services) == 17 &&
+      length(output.guardrails.enabled_services) == 19 &&
+      contains(output.guardrails.enabled_services, "bigquery.googleapis.com") &&
       contains(output.guardrails.enabled_services, "billingbudgets.googleapis.com") &&
       contains(output.guardrails.enabled_services, "monitoring.googleapis.com") &&
+      contains(output.guardrails.enabled_services, "storage.googleapis.com") &&
       output.guardrails.audit_logging.service == "allServices" &&
       toset(output.guardrails.audit_logging.log_types) == toset(["ADMIN_READ", "DATA_READ", "DATA_WRITE"]) &&
       output.guardrails.resource_labels.platform["environment"] == "dev" &&
       output.guardrails.resource_labels.network["environment"] == "dev"
     )
     error_message = "Development must carry the complete API, audit, and labeling baseline."
+  }
+
+  assert {
+    condition = (
+      output.data_access_contract.default_deny &&
+      length(output.data_access_contract.storage) == 0 &&
+      length(output.data_access_contract.bigquery) == 0 &&
+      length(output.data_access_contract.bigquery_job_users) == 0
+    )
+    error_message = "Development must deny cross-project data access unless its env file declares reviewed resources."
   }
 
   assert {

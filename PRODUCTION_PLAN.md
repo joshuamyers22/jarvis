@@ -311,7 +311,7 @@ Exit gate:
 
 Goal: make environment creation repeatable and safe.
 
-Implementation status (2026-09-16): P1.1 through P1.5 are implemented and
+Implementation status (2026-09-16): P1.1 through P1.6 are implemented and
 locally validated. The protected state bucket and live roots still require
 authorized, reviewed applies in their selected GCP projects.
 
@@ -340,14 +340,20 @@ authorized, reviewed applies in their selected GCP projects.
   labels, audit logs, budgets, quota alerts, and environment-specific deletion
   protection. Record which organization policies are required versus optional.
   All live roots now expose
-  a tested guardrail contract covering 17 APIs, mandatory ownership/cost labels,
+  a tested guardrail contract covering 19 APIs, mandatory ownership/cost labels,
   all-service Data Access audit logs, project-scoped budget thresholds, allocation
   quota warning/exceeded alerts, and explicit dev versus stage/prod deletion
   policies. The billing-account IAM grant, email-channel verification, and parent
   organization policies remain reviewed apply prerequisites.
-- **P1.6 Decide cross-project data access.** Define approved shared-data buckets or
-  BigQuery datasets and grant only explicit reader/writer roles; do not embed project
-  allowlists in Python.
+- **P1.6 Decide cross-project data access — complete locally.** Define approved
+  shared-data buckets or BigQuery datasets and grant only explicit reader/writer
+  roles; do not embed project allowlists in Python. All environments now deny
+  cross-project data by default. Reviewed declarations create only resource-level
+  Storage or BigQuery member grants for eligible job, feed, and notebook identities,
+  preserve approval metadata, enforce source environment/location/public-access
+  checks, and keep BigQuery query execution in the consumer project. The current
+  approved resource set is intentionally empty; source-owner approval and narrow
+  external IAM authority are apply prerequisites.
 
 Exit gate:
 

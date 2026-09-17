@@ -29,6 +29,10 @@ Before a live apply, complete the
 monthly budget, grant the deployer Billing Account Costs Manager on the selected
 billing account, and arrange organization-policy evidence. After the apply,
 verify the Monitoring email channel and deliver a test notification.
+Keep cross-project data variables empty unless the source owner approved the
+resource, workload, and role under the
+[GCP data-access procedure](gcp-data-access.md). Review the resulting
+`data_access_contract` output with every live plan.
 
 ```bash
 scripts/gcp-live.sh dev validate

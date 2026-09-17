@@ -74,6 +74,8 @@ module "platform" {
   github_repository            = var.github_repository
   github_repository_id         = var.github_repository_id
   github_repository_owner_id   = var.github_repository_owner_id
+  shared_storage_buckets       = var.shared_storage_buckets
+  shared_bigquery_datasets     = var.shared_bigquery_datasets
   github_environment           = "development"
   github_ref                   = "refs/heads/main"
   network_self_link            = module.network.network_self_link

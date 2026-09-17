@@ -89,6 +89,139 @@ variable "labels" {
   }
 }
 
+variable "shared_storage_buckets" {
+  type = map(object({
+    project_id         = string
+    source_environment = string
+    location           = string
+    owner              = string
+    classification     = string
+    approval_id        = string
+    review_on          = string
+    workload_access    = map(string)
+  }))
+  description = "Explicit cross-project Cloud Storage grants, keyed by globally unique bucket name."
+  default     = {}
+
+  validation {
+    condition = alltrue([
+      for bucket, config in var.shared_storage_buckets :
+      can(regex("^[a-z0-9][a-z0-9._-]{1,61}[a-z0-9]$", bucket)) &&
+      can(regex("^[a-z][a-z0-9-]{4,28}[a-z0-9]$", config.project_id)) &&
+      config.project_id != var.project_id
+    ])
+    error_message = "Shared bucket names and project IDs must be valid, and a shared bucket must belong to another project."
+  }
+
+  validation {
+    condition = alltrue([
+      for config in values(var.shared_storage_buckets) :
+      contains(["shared", var.env], config.source_environment) &&
+      (
+        length(regexall("-(dev|stage|prod)$", config.project_id)) == 0 ||
+        endswith(config.project_id, "-${config.source_environment}")
+      )
+    ])
+    error_message = "Shared buckets may come only from shared or same-environment projects; an environment suffix must match the declaration."
+  }
+
+  validation {
+    condition = alltrue([
+      for config in values(var.shared_storage_buckets) :
+      contains([var.region, upper(split("-", var.region)[0])], config.location) &&
+      can(regex("^group:[^[:space:]]+@[^[:space:]]+$", config.owner)) &&
+      contains(["public", "internal", "confidential", "restricted"], config.classification) &&
+      can(regex("^[A-Za-z0-9][A-Za-z0-9._/-]{2,127}$", config.approval_id)) &&
+      can(formatdate("YYYY-MM-DD", "${config.review_on}T00:00:00Z")) &&
+      length(config.workload_access) > 0
+    ])
+    error_message = "Every shared bucket needs an approved location, group owner, classification, approval ID, review date, and at least one grant."
+  }
+
+  validation {
+    condition = alltrue(flatten([
+      for config in values(var.shared_storage_buckets) : [
+        for workload, access in config.workload_access :
+        (workload == "job" && contains(["reader", "writer"], access)) ||
+        (workload == "feed" && access == "creator") ||
+        (workload == "notebook" && access == "reader")
+      ]
+    ]))
+    error_message = "Storage grants allow job reader/writer, feed creator, and notebook reader only."
+  }
+}
+
+variable "shared_bigquery_datasets" {
+  type = map(object({
+    project_id         = string
+    dataset_id         = string
+    source_environment = string
+    location           = string
+    owner              = string
+    classification     = string
+    approval_id        = string
+    review_on          = string
+    workload_access    = map(string)
+  }))
+  description = "Explicit cross-project BigQuery grants, keyed by a stable approval alias."
+  default     = {}
+
+  validation {
+    condition = alltrue([
+      for config in values(var.shared_bigquery_datasets) :
+      can(regex("^[a-z][a-z0-9-]{4,28}[a-z0-9]$", config.project_id)) &&
+      can(regex("^[A-Za-z0-9_]+$", config.dataset_id)) &&
+      length(config.dataset_id) <= 1024 &&
+      config.project_id != var.project_id
+    ])
+    error_message = "Shared BigQuery project and dataset IDs must be valid, and a shared dataset must belong to another project."
+  }
+
+  validation {
+    condition = length(distinct([
+      for config in values(var.shared_bigquery_datasets) :
+      "${config.project_id}/${config.dataset_id}"
+    ])) == length(var.shared_bigquery_datasets)
+    error_message = "Each external BigQuery dataset may appear only once."
+  }
+
+  validation {
+    condition = alltrue([
+      for config in values(var.shared_bigquery_datasets) :
+      contains(["shared", var.env], config.source_environment) &&
+      (
+        length(regexall("-(dev|stage|prod)$", config.project_id)) == 0 ||
+        endswith(config.project_id, "-${config.source_environment}")
+      )
+    ])
+    error_message = "Shared datasets may come only from shared or same-environment projects; an environment suffix must match the declaration."
+  }
+
+  validation {
+    condition = alltrue([
+      for config in values(var.shared_bigquery_datasets) :
+      contains([var.region, upper(split("-", var.region)[0])], config.location) &&
+      can(regex("^group:[^[:space:]]+@[^[:space:]]+$", config.owner)) &&
+      contains(["public", "internal", "confidential", "restricted"], config.classification) &&
+      can(regex("^[A-Za-z0-9][A-Za-z0-9._/-]{2,127}$", config.approval_id)) &&
+      can(formatdate("YYYY-MM-DD", "${config.review_on}T00:00:00Z")) &&
+      length(config.workload_access) > 0
+    ])
+    error_message = "Every shared dataset needs an approved location, group owner, classification, approval ID, review date, and at least one grant."
+  }
+
+  validation {
+    condition = alltrue(flatten([
+      for config in values(var.shared_bigquery_datasets) : [
+        for workload, access in config.workload_access :
+        (workload == "job" && contains(["reader", "writer"], access)) ||
+        (workload == "notebook" && access == "reader")
+      ]
+    ]))
+    error_message = "BigQuery grants allow job reader/writer and notebook reader only."
+  }
+}
+
 variable "network_self_link" {
   type        = string
   description = "Self-link of the existing VPC used by VMs and private service access."
