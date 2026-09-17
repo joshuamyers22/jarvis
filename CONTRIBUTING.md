@@ -1,9 +1,8 @@
 # Contributing to Jarvis
 
-Jarvis is public for inspection and collaboration, but it does not currently
-carry an open-source license. Discuss substantial changes in an issue before
-investing significant work; acceptance of contributions is not guaranteed until
-licensing and contributor terms are clarified.
+Jarvis is available under the MIT License. Discuss substantial changes in an
+issue before investing significant work so implementation and review
+expectations are clear.
 
 ## Development setup
 
@@ -35,8 +34,9 @@ terraform -chdir=terraform/gcp init -backend=false -input=false
 terraform -chdir=terraform/gcp validate
 ```
 
-Replace `gcp` as appropriate. CI validates all three providers and the GCP
-remote-state bootstrap root.
+Replace `gcp` as appropriate. CI validates all provider modules, the GCP
+private-network module, the remote-state bootstrap root, and all three GCP live
+environment roots. Terraform native tests enforce their security boundaries.
 
 ## Project boundaries
 

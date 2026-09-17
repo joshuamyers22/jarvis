@@ -2,6 +2,7 @@
 .env.*
 !.env.example
 !terraform/bootstrap/gcp/.env.bootstrap.example
+!terraform/live/gcp/*/.env.live.example
 *.pem
 *.key
 *.p12

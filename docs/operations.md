@@ -4,11 +4,14 @@ This describes the operational contract, not a substitute for a provider review.
 
 ## Provisioning
 
-Choose one module under `terraform/`. The modules expect existing private
-networking and should use encrypted, versioned remote state with locking.
-For GCP, first create the backend using the
+AWS and Azure currently expect existing private networking. For GCP, first
+create the backend using the
 [state bootstrap procedure](../terraform/bootstrap/gcp/README.md); do not create
 an ad hoc bucket or reuse another environment's state prefix.
+Deploy GCP through the [live environment roots](../terraform/live/gcp/README.md),
+not by applying the reusable `terraform/gcp` module directly. Each live root
+owns an isolated private VPC, Cloud NAT, private service access, private DNS,
+and IAP-only SSH ingress alongside the platform resources.
 
 Local bootstrap and runtime settings belong in their documented ignored env
 files. Store only credential references or impersonation targets there; use
@@ -16,9 +19,9 @@ short-lived Application Default Credentials or workload identity rather than
 embedding cloud keys.
 
 ```bash
-terraform -chdir=terraform/gcp init -backend-config=backend.hcl
-terraform -chdir=terraform/gcp plan -var-file=prod.tfvars -out=plan.tfplan
-terraform -chdir=terraform/gcp apply plan.tfplan
+scripts/gcp-live.sh dev validate
+scripts/gcp-live.sh dev plan
+scripts/gcp-live.sh dev apply
 ```
 
 Do not commit backend credentials, variable files, plans, or state.
@@ -46,12 +49,14 @@ corresponding repository variables and keyless identity secrets are configured.
 ## Access
 
 ```bash
-ssh -N -L 8080:localhost:8080 user@control-host
-ssh -N -L 8888:localhost:8888 user@notebook-host
+gcloud compute ssh research-dev-control --project PROJECT_ID --zone us-central1-a \
+  --tunnel-through-iap -- -N -L 8080:localhost:8080
+gcloud compute ssh research-dev-notebook --project PROJECT_ID --zone us-central1-a \
+  --tunnel-through-iap -- -N -L 8888:localhost:8888
 ```
 
-Use IAP, Session Manager, or Bastion rather than adding public IPs solely for
-administration.
+GCP SSH is accepted only from IAP's TCP-forwarding range. Keep the tunnel flag;
+do not add an external IP or broader firewall rule for administration.
 
 ## Routine checks
 

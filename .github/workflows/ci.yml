@@ -40,12 +40,19 @@ jobs:
       - run: terraform fmt -check -recursive terraform
       - name: Validate provider modules
         run: |
-          for module in gcp aws azure bootstrap/gcp; do
+          for module in gcp gcp/network aws azure bootstrap/gcp live/gcp/dev live/gcp/stage live/gcp/prod; do
             terraform -chdir="terraform/$module" init -backend=false -input=false
             terraform -chdir="terraform/$module" validate
           done
       - name: Test GCP state bootstrap controls
         run: terraform -chdir=terraform/bootstrap/gcp test
+      - name: Test GCP private network controls
+        run: terraform -chdir=terraform/gcp/network test
+      - name: Test GCP live environment boundaries
+        run: |
+          for environment in dev stage prod; do
+            terraform -chdir="terraform/live/gcp/$environment" test
+          done
 
   security:
     runs-on: ubuntu-latest

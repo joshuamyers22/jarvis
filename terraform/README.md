@@ -21,18 +21,19 @@ A single module covering all three would be a wrapper around `count` and
 conditional resources that nobody can read and Terraform cannot plan cleanly.
 Three modules are more lines and less complexity.
 
-Pick one:
+AWS and Azure remain directly deployable provider roots:
 
 ```bash
-cd terraform/gcp     # or aws, or azure
+cd terraform/aws     # or azure
 terraform init -backend-config="bucket=my-tfstate"
 terraform apply -var-file=prod.tfvars
 ```
 
-For GCP, create the protected remote-state bucket first with the standalone
-[`bootstrap/gcp`](bootstrap/gcp/README.md) root. Its initial local state is
-immediately migrated to the reserved `bootstrap/gcp` prefix; application
-environment roots must use separate prefixes.
+For GCP, create the protected remote-state bucket with the standalone
+[`bootstrap/gcp`](bootstrap/gcp/README.md) root, then deploy only through the
+explicit [`live/gcp/{dev,stage,prod}`](live/gcp/README.md) roots. `terraform/gcp`
+is their reusable platform child module and `terraform/gcp/network` supplies the
+managed private-network boundary; neither child module should be applied directly.
 
 Each module produces the same outputs, which is where the abstraction does
 hold: `storage_uri`, `registry`, `batch_job_name`, `db_host`, and the identities

@@ -311,9 +311,9 @@ Exit gate:
 
 Goal: make environment creation repeatable and safe.
 
-Implementation status (2026-09-16): P1.1 is implemented and locally validated.
-The protected state bucket still requires an authorized apply in the selected
-GCP administrative project before P1.2 environment roots can adopt it.
+Implementation status (2026-09-16): P1.1 through P1.3 are implemented and
+locally validated. The protected state bucket and live roots still require
+authorized, reviewed applies in their selected GCP projects.
 
 - **P1.1 Add a bootstrap stack.** Create the remote-state bucket with versioning,
   retention, public-access prevention, and narrowly scoped administration. Bootstrap
@@ -321,9 +321,12 @@ GCP administrative project before P1.2 environment roots can adopt it.
 - **P1.2 Add live environment roots.** Introduce `terraform/live/gcp/{dev,stage,prod}`
   or an equivalent composition layer with isolated state and explicit provider
   configuration. Reusable resources remain in the current GCP module.
-- **P1.3 Provision private networking.** Manage or formally import the VPC, regional
+- **P1.3 Provision private networking — complete locally.** Manage or formally import the VPC, regional
   subnets, Private Google Access, Cloud NAT where required, private service access,
-  DNS, and IAP-only administration. Default-deny ingress is the baseline.
+  DNS, and IAP-only administration. Default-deny ingress is the baseline. Each live
+  root now owns a custom-mode VPC with a fixed non-overlapping CIDR, private-only
+  compute NICs, flow/NAT/firewall logging, private service peering, environment-local
+  DNS, OS Login metadata, and a tested IAP SSH exception.
 - **P1.4 Complete workload identity.** Separate deployer, control, job, feed, notebook,
   and CI identities. Add GitHub OIDC federation bound to the exact repository and
   protected environment, plus IAM policy tests. Remove reliance on default service

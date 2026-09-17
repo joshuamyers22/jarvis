@@ -38,6 +38,11 @@ resource "google_compute_instance" "control" {
     scopes = ["cloud-platform"]
   }
 
+  metadata = {
+    enable-oslogin         = "TRUE"
+    block-project-ssh-keys = "TRUE"
+  }
+
   metadata_startup_script   = local.startup_script
   allow_stopping_for_update = true
 }
@@ -64,6 +69,11 @@ resource "google_compute_instance" "feed" {
   service_account {
     email  = google_service_account.roles["feed"].email
     scopes = ["cloud-platform"]
+  }
+
+  metadata = {
+    enable-oslogin         = "TRUE"
+    block-project-ssh-keys = "TRUE"
   }
 
   metadata_startup_script   = local.startup_script
@@ -96,19 +106,11 @@ resource "google_compute_instance" "notebook" {
     scopes = ["cloud-platform"]
   }
 
+  metadata = {
+    enable-oslogin         = "TRUE"
+    block-project-ssh-keys = "TRUE"
+  }
+
   metadata_startup_script   = local.startup_script
   allow_stopping_for_update = true
-}
-
-# IAP-only SSH. No port 22 open to the internet, ever.
-resource "google_compute_firewall" "iap_ssh" {
-  name          = "${local.name_prefix}-allow-iap-ssh"
-  network       = var.network_self_link
-  source_ranges = ["35.235.240.0/20"] # the IAP forwarding range
-  target_tags   = ["research"]
-
-  allow {
-    protocol = "tcp"
-    ports    = ["22"]
-  }
 }

@@ -1,6 +1,11 @@
 variable "project_id" {
   type        = string
   description = "GCP project id."
+
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9-]{4,28}[a-z0-9]$", var.project_id))
+    error_message = "project_id must be a valid 6-30 character GCP project ID."
+  }
 }
 
 variable "region" {
@@ -14,8 +19,13 @@ variable "zone" {
 }
 
 variable "env" {
-  type    = string
-  default = "prod"
+  type        = string
+  description = "Deployment environment. Live roots pass this as a literal."
+
+  validation {
+    condition     = contains(["dev", "stage", "prod"], var.env)
+    error_message = "env must be dev, stage, or prod."
+  }
 }
 
 variable "bucket_name" {
@@ -36,6 +46,23 @@ variable "subnetwork_self_link" {
 variable "db_tier" {
   type    = string
   default = "db-f1-micro"
+}
+
+variable "db_availability_type" {
+  type        = string
+  description = "Cloud SQL availability type. Production uses REGIONAL."
+  default     = "ZONAL"
+
+  validation {
+    condition     = contains(["ZONAL", "REGIONAL"], var.db_availability_type)
+    error_message = "db_availability_type must be ZONAL or REGIONAL."
+  }
+}
+
+variable "db_deletion_protection" {
+  type        = bool
+  description = "Protect the Cloud SQL instance from accidental deletion."
+  default     = true
 }
 
 variable "control_machine_type" {

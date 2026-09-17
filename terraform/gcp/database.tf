@@ -5,7 +5,7 @@ resource "google_sql_database_instance" "airflow" {
 
   settings {
     tier              = var.db_tier
-    availability_type = "ZONAL"
+    availability_type = var.db_availability_type
     disk_autoresize   = true
     disk_size         = 10
 
@@ -28,11 +28,10 @@ resource "google_sql_database_instance" "airflow" {
     user_labels = local.common_labels
   }
 
-  # Airflow metadata is recoverable by rebuilding; the data bucket is not. This
-  # exists to stop an accidental `terraform destroy` losing task history.
-  deletion_protection = true
+  # Live roots choose the deletion policy explicitly. Stage and production
+  # protect task history; development remains intentionally disposable.
+  deletion_protection = var.db_deletion_protection
 
-  depends_on = [google_service_networking_connection.private_services]
 }
 
 resource "google_sql_database" "airflow" {
