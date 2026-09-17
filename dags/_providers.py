@@ -129,6 +129,7 @@ def dispatch_azure(
     base_env = {
         "RP_ENV": os.environ.get("RP_ENV", "prod"),
         "RP_STORAGE_URI": os.environ["RP_STORAGE_URI"],
+        "RP_SCRATCH_URI": os.environ["RP_SCRATCH_URI"],
         "RP_CLOUD": "azure",
         "RP_REGION": os.environ["RP_REGION"],
         "RP_RESOURCE_GROUP": os.environ["RP_RESOURCE_GROUP"],

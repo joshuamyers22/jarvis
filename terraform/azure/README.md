@@ -23,4 +23,10 @@ path scaffolded here.
 **What does work cleanly**: storage (adlfs speaks `abfs://` through fsspec like
 any other backend), Key Vault as the Airflow secrets backend, WASB remote
 logging, Postgres Flexible Server, and managed identity for credential-free
-access. Those are the same shape as the other two providers.
+access. Data, logs, scratch, and backups use separate private containers and
+container-scoped role assignments. The control identity uses the dedicated
+Azure Container Instances Contributor role plus subnet-scoped Network
+Contributor—not general resource-group Contributor—so it cannot bypass storage
+data-plane boundaries through storage management. See
+[`docs/storage-classes.md`](../../docs/storage-classes.md). Those are the same
+shape as the other two providers.

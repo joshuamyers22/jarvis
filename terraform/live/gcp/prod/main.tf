@@ -65,6 +65,9 @@ module "platform" {
   region                       = var.region
   zone                         = var.zone
   bucket_name                  = var.bucket_name
+  airflow_log_bucket_name      = var.airflow_log_bucket_name
+  scratch_bucket_name          = var.scratch_bucket_name
+  backup_bucket_name           = var.backup_bucket_name
   billing_account_id           = var.billing_account_id
   alert_email                  = var.alert_email
   monthly_budget_usd           = var.monthly_budget_usd

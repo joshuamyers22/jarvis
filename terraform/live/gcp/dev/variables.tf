@@ -26,6 +26,21 @@ variable "bucket_name" {
   description = "Globally unique development data bucket name."
 }
 
+variable "airflow_log_bucket_name" {
+  type        = string
+  description = "Globally unique development Airflow-log bucket name."
+}
+
+variable "scratch_bucket_name" {
+  type        = string
+  description = "Globally unique development scratch bucket name."
+}
+
+variable "backup_bucket_name" {
+  type        = string
+  description = "Globally unique development backup bucket name."
+}
+
 variable "billing_account_id" {
   type        = string
   description = "Cloud Billing account that owns the development budget."

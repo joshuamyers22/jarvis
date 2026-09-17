@@ -26,12 +26,6 @@ resource "azurerm_user_assigned_identity" "roles" {
 
 # --- data access, scoped to the container not the account --------------------
 
-resource "azurerm_role_assignment" "control_data" {
-  scope                = azurerm_storage_container.data.id
-  role_definition_name = "Storage Blob Data Contributor"
-  principal_id         = azurerm_user_assigned_identity.roles["control"].principal_id
-}
-
 resource "azurerm_role_assignment" "job_data" {
   scope                = azurerm_storage_container.data.id
   role_definition_name = "Storage Blob Data Contributor"
@@ -56,11 +50,32 @@ resource "azurerm_role_assignment" "control_logs" {
   principal_id         = azurerm_user_assigned_identity.roles["control"].principal_id
 }
 
+resource "azurerm_role_assignment" "job_scratch" {
+  scope                = azurerm_storage_container.scratch.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = azurerm_user_assigned_identity.roles["job"].principal_id
+}
+
+resource "azurerm_role_assignment" "notebook_scratch" {
+  scope                = azurerm_storage_container.scratch.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = azurerm_user_assigned_identity.roles["notebook"].principal_id
+}
+
+# No runtime identity receives backup-container access. P2.3/P2.5 will attach a
+# dedicated backup/restore identity when the recovery workflows are defined.
+
 # --- control: create container instances, read its own secrets ---------------
 
 resource "azurerm_role_assignment" "control_aci" {
   scope                = azurerm_resource_group.main.id
-  role_definition_name = "Contributor"
+  role_definition_name = "Azure Container Instances Contributor Role"
+  principal_id         = azurerm_user_assigned_identity.roles["control"].principal_id
+}
+
+resource "azurerm_role_assignment" "control_aci_network" {
+  scope                = var.aci_subnet_id
+  role_definition_name = "Network Contributor"
   principal_id         = azurerm_user_assigned_identity.roles["control"].principal_id
 }
 

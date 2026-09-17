@@ -9,9 +9,9 @@ account, and no service-account key is created.
 | `research-ENV-deployer` | Terraform plans and applies | Reviewed infrastructure-admin roles; may attach the four runtime identities |
 | `research-ENV-ci` | GitHub Actions image publishing | Artifact Registry writer on the `research` repository only |
 | `research-ENV-control` | Airflow scheduler and API | Execute the one Cloud Run job with per-task overrides, Cloud SQL client, log-object administration, its database secret, image pull |
-| `research-ENV-job` | Cloud Run batch execution | Data-object administration and image pull |
+| `research-ENV-job` | Cloud Run batch execution | Data and scratch object administration; image pull |
 | `research-ENV-feed` | Append-only feed ingestion | Object creation and image pull; no read, overwrite, or delete |
-| `research-ENV-notebook` | Interactive research | Data-object read and image pull; scratch writes wait for the P2 storage boundary |
+| `research-ENV-notebook` | Interactive research | Data-object read, scratch-object administration, and image pull |
 | Named operator users/groups | Human VM operations | OS Login, IAP tunnels restricted to port 22, instance start/stop, and actAs only on the three VM identities |
 
 Terraform's native policy tests assert the exact account set, workload

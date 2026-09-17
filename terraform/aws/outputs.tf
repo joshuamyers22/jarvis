@@ -6,6 +6,65 @@ output "storage_uri" {
   value = "s3://${aws_s3_bucket.data.bucket}"
 }
 
+output "airflow_logs_uri" {
+  value = "s3://${aws_s3_bucket.storage["airflow_logs"].bucket}"
+}
+
+output "scratch_uri" {
+  value = "s3://${aws_s3_bucket.storage["scratch"].bucket}"
+}
+
+output "backup_uri" {
+  value = "s3://${aws_s3_bucket.storage["backup"].bucket}"
+}
+
+output "storage_locations" {
+  value = {
+    data         = "s3://${aws_s3_bucket.data.bucket}"
+    airflow_logs = "s3://${aws_s3_bucket.storage["airflow_logs"].bucket}"
+    scratch      = "s3://${aws_s3_bucket.storage["scratch"].bucket}"
+    backup       = "s3://${aws_s3_bucket.storage["backup"].bucket}"
+  }
+}
+
+output "storage_contract" {
+  value = {
+    data = {
+      uri        = "s3://${aws_s3_bucket.data.bucket}"
+      versioning = aws_s3_bucket_versioning.data.versioning_configuration[0].status == "Enabled"
+      encrypted  = true
+      workload_access = {
+        job      = "writer"
+        feed     = "writer"
+        notebook = "reader"
+      }
+    }
+    airflow_logs = {
+      uri        = "s3://${aws_s3_bucket.storage["airflow_logs"].bucket}"
+      versioning = aws_s3_bucket_versioning.storage["airflow_logs"].versioning_configuration[0].status == "Enabled"
+      encrypted  = true
+      workload_access = {
+        control = "writer"
+      }
+    }
+    scratch = {
+      uri        = "s3://${aws_s3_bucket.storage["scratch"].bucket}"
+      versioning = aws_s3_bucket_versioning.storage["scratch"].versioning_configuration[0].status == "Enabled"
+      encrypted  = true
+      workload_access = {
+        job      = "writer"
+        notebook = "writer"
+      }
+    }
+    backup = {
+      uri             = "s3://${aws_s3_bucket.storage["backup"].bucket}"
+      versioning      = aws_s3_bucket_versioning.storage["backup"].versioning_configuration[0].status == "Enabled"
+      encrypted       = true
+      workload_access = {}
+    }
+  }
+}
+
 output "registry" {
   value = aws_ecr_repository.images.repository_url
 }

@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="RP_", extra="ignore")
 
     # --- identity ------------------------------------------------------------
-    env: Literal["dev", "staging", "prod"] = "dev"
+    env: Literal["dev", "stage", "prod"] = "dev"
     #: Left empty to derive from ``storage_uri``. Set it only to assert.
     cloud: Cloud | None = None
 
@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     #:   s3://my-bucket
     #:   abfs://my-container@myaccount.dfs.core.windows.net
     storage_uri: str = ""
+    #: Separate temporary workspace. Optional for local development, but live
+    #: environments populate it from Terraform's storage contract.
+    scratch_uri: str = ""
     #: Set to a local directory to bypass object storage entirely. Development
     #: only -- if this is set in prod, jobs write to a disk that will vanish.
     local_root: str | None = None
@@ -73,6 +76,9 @@ class Settings(BaseSettings):
             object.__setattr__(self, "cloud", infer_cloud(self.storage_uri))
         else:
             validate(self.cloud, self.storage_uri)
+        if self.scratch_uri:
+            assert self.cloud is not None
+            validate(self.cloud, self.scratch_uri)
         return self
 
     @property
@@ -88,6 +94,14 @@ class Settings(BaseSettings):
     @property
     def is_local(self) -> bool:
         return bool(self.local_root)
+
+    @property
+    def scratch_root_uri(self) -> str:
+        if self.local_root:
+            return f"{self.local_root.rstrip('/')}/scratch"
+        if not self.scratch_uri:
+            raise RuntimeError("RP_SCRATCH_URI is required for object-storage scratch access")
+        return self.scratch_uri.rstrip("/")
 
 
 @lru_cache(maxsize=1)

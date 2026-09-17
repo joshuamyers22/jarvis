@@ -44,9 +44,11 @@ declared through the reviewed, resource-scoped contract in the
 [GCP data-access runbook](../docs/gcp-data-access.md).
 
 Each module produces the same outputs, which is where the abstraction does
-hold: `storage_uri`, `registry`, `batch_job_name`, `db_host`, and the identities
-each role runs as. Feed those into `.env` and the rest of the platform does not
-know or care which cloud it is on.
+hold: `storage_uri`, `storage_locations`, `storage_contract`, `registry`,
+`batch_job_name`, `db_host`, and the identities each role runs as. Data, Airflow
+logs, scratch, and backups use distinct resource-level boundaries; see the
+[storage-class runbook](../docs/storage-classes.md). Feed those outputs into
+`.env` and the rest of the platform does not know or care which cloud it is on.
 
 ## AWS shared notebook storage
 

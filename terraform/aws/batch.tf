@@ -78,6 +78,7 @@ resource "aws_batch_job_definition" "research" {
       { name = "RP_ENV", value = var.env },
       { name = "RP_REGION", value = var.region },
       { name = "RP_STORAGE_URI", value = "s3://${aws_s3_bucket.data.bucket}" },
+      { name = "RP_SCRATCH_URI", value = "s3://${aws_s3_bucket.storage["scratch"].bucket}" },
       { name = "RP_CLOUD", value = "aws" },
     ]
     logConfiguration = {

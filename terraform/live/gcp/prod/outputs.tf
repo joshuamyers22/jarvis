@@ -18,6 +18,26 @@ output "storage_uri" {
   value = module.platform.storage_uri
 }
 
+output "airflow_logs_uri" {
+  value = module.platform.airflow_logs_uri
+}
+
+output "scratch_uri" {
+  value = module.platform.scratch_uri
+}
+
+output "backup_uri" {
+  value = module.platform.backup_uri
+}
+
+output "storage_locations" {
+  value = module.platform.storage_locations
+}
+
+output "storage_contract" {
+  value = module.platform.storage_contract
+}
+
 output "registry" {
   value = module.platform.registry
 }

@@ -85,9 +85,20 @@ resource "aws_iam_role_policy" "job_data" {
   policy = data.aws_iam_policy_document.data_readwrite.json
 }
 
-resource "aws_iam_role_policy" "control_data" {
+data "aws_iam_policy_document" "control_logs" {
+  statement {
+    actions   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+    resources = ["${aws_s3_bucket.storage["airflow_logs"].arn}/*"]
+  }
+  statement {
+    actions   = ["s3:ListBucket"]
+    resources = [aws_s3_bucket.storage["airflow_logs"].arn]
+  }
+}
+
+resource "aws_iam_role_policy" "control_logs" {
   role   = aws_iam_role.roles["control"].id
-  policy = data.aws_iam_policy_document.data_readwrite.json
+  policy = data.aws_iam_policy_document.control_logs.json
 }
 
 resource "aws_iam_role_policy" "feed_data" {
@@ -99,6 +110,30 @@ resource "aws_iam_role_policy" "notebook_data" {
   role   = aws_iam_role.roles["notebook"].id
   policy = data.aws_iam_policy_document.data_readonly.json
 }
+
+data "aws_iam_policy_document" "scratch_readwrite" {
+  statement {
+    actions   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+    resources = ["${aws_s3_bucket.storage["scratch"].arn}/*"]
+  }
+  statement {
+    actions   = ["s3:ListBucket"]
+    resources = [aws_s3_bucket.storage["scratch"].arn]
+  }
+}
+
+resource "aws_iam_role_policy" "job_scratch" {
+  role   = aws_iam_role.roles["job"].id
+  policy = data.aws_iam_policy_document.scratch_readwrite.json
+}
+
+resource "aws_iam_role_policy" "notebook_scratch" {
+  role   = aws_iam_role.roles["notebook"].id
+  policy = data.aws_iam_policy_document.scratch_readwrite.json
+}
+
+# No runtime role receives backup-bucket access. P2.3/P2.5 will introduce a
+# dedicated backup/restore role when the recovery workflows are defined.
 
 # --- control: submit batch jobs and read its own secret ----------------------
 

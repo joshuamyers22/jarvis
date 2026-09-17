@@ -50,6 +50,10 @@ jobs:
         run: terraform -chdir=terraform/gcp/network test
       - name: Test GCP identity and IAM controls
         run: terraform -chdir=terraform/gcp test
+      - name: Test AWS and Azure storage boundaries
+        run: |
+          terraform -chdir=terraform/aws test
+          terraform -chdir=terraform/azure test
       - name: Test GCP live environment boundaries
         run: |
           for environment in dev stage prod; do

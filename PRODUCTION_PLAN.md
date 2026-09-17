@@ -366,8 +366,15 @@ Exit gate:
 
 Goal: close the data-loss and credential gaps before deploying real workloads.
 
-- **P2.1 Formalize storage classes.** Provision distinct data, Airflow-log, temporary,
-  and backup locations where separation improves IAM or lifecycle enforcement.
+- **P2.1 Formalize storage classes — complete locally.** Provision distinct data,
+  Airflow-log, temporary, and backup locations where separation improves IAM or
+  lifecycle enforcement. GCP and AWS now use four distinct buckets; Azure uses
+  four private containers in its ADLS Gen2 account. The existing data location is
+  retained, control access moves to logs, jobs and notebooks receive a dedicated
+  scratch boundary, no runtime identity can access backups, and every provider
+  emits the same storage-location and access-contract outputs. Runtime scratch
+  configuration and a staged log-migration procedure are documented; provider
+  policy tests cover the resulting boundaries.
 - **P2.2 Approve lifecycle policy.** Start with raw data transitioning to Coldline
   after 90 days, temporary objects expiring after 14 days, Airflow logs after 90 days,
   and three noncurrent object versions. Document exceptions for legal, vendor, or

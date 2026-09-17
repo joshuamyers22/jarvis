@@ -22,8 +22,8 @@ locals {
     for az, ids in local.private_subnets_grouped_by_az : az => sort(ids)[0]
   }
 
-  notebook_efs_id              = local.create_notebook_efs ? aws_efs_file_system.notebooks[0].id : coalesce(var.notebook_efs_file_system_id, "")
-  notebook_efs_access_point_id = local.create_notebook_efs ? aws_efs_access_point.notebooks[0].id : coalesce(var.notebook_efs_access_point_id, "")
+  notebook_efs_id              = local.create_notebook_efs ? aws_efs_file_system.notebooks[0].id : (var.notebook_efs_file_system_id == null ? "" : var.notebook_efs_file_system_id)
+  notebook_efs_access_point_id = local.create_notebook_efs ? aws_efs_access_point.notebooks[0].id : (var.notebook_efs_access_point_id == null ? "" : var.notebook_efs_access_point_id)
   notebook_efs_owner_account_id = coalesce(
     var.notebook_efs_owner_account_id,
     data.aws_caller_identity.current.account_id,

@@ -5,6 +5,65 @@ output "storage_uri" {
   value = "abfs://${azurerm_storage_container.data.name}@${azurerm_storage_account.data.name}.dfs.core.windows.net"
 }
 
+output "airflow_logs_uri" {
+  value = "wasb://${azurerm_storage_container.logs.name}@${azurerm_storage_account.data.name}.blob.core.windows.net"
+}
+
+output "scratch_uri" {
+  value = "abfs://${azurerm_storage_container.scratch.name}@${azurerm_storage_account.data.name}.dfs.core.windows.net"
+}
+
+output "backup_uri" {
+  value = "abfs://${azurerm_storage_container.backup.name}@${azurerm_storage_account.data.name}.dfs.core.windows.net"
+}
+
+output "storage_locations" {
+  value = {
+    data         = "abfs://${azurerm_storage_container.data.name}@${azurerm_storage_account.data.name}.dfs.core.windows.net"
+    airflow_logs = "wasb://${azurerm_storage_container.logs.name}@${azurerm_storage_account.data.name}.blob.core.windows.net"
+    scratch      = "abfs://${azurerm_storage_container.scratch.name}@${azurerm_storage_account.data.name}.dfs.core.windows.net"
+    backup       = "abfs://${azurerm_storage_container.backup.name}@${azurerm_storage_account.data.name}.dfs.core.windows.net"
+  }
+}
+
+output "storage_contract" {
+  value = {
+    data = {
+      uri        = "abfs://${azurerm_storage_container.data.name}@${azurerm_storage_account.data.name}.dfs.core.windows.net"
+      versioning = azurerm_storage_account.data.blob_properties[0].versioning_enabled
+      private    = azurerm_storage_container.data.container_access_type == "private"
+      workload_access = {
+        job      = "writer"
+        feed     = "writer"
+        notebook = "reader"
+      }
+    }
+    airflow_logs = {
+      uri        = "wasb://${azurerm_storage_container.logs.name}@${azurerm_storage_account.data.name}.blob.core.windows.net"
+      versioning = azurerm_storage_account.data.blob_properties[0].versioning_enabled
+      private    = azurerm_storage_container.logs.container_access_type == "private"
+      workload_access = {
+        control = "writer"
+      }
+    }
+    scratch = {
+      uri        = "abfs://${azurerm_storage_container.scratch.name}@${azurerm_storage_account.data.name}.dfs.core.windows.net"
+      versioning = azurerm_storage_account.data.blob_properties[0].versioning_enabled
+      private    = azurerm_storage_container.scratch.container_access_type == "private"
+      workload_access = {
+        job      = "writer"
+        notebook = "writer"
+      }
+    }
+    backup = {
+      uri             = "abfs://${azurerm_storage_container.backup.name}@${azurerm_storage_account.data.name}.dfs.core.windows.net"
+      versioning      = azurerm_storage_account.data.blob_properties[0].versioning_enabled
+      private         = azurerm_storage_container.backup.container_access_type == "private"
+      workload_access = {}
+    }
+  }
+}
+
 output "registry" {
   value = azurerm_container_registry.images.login_server
 }

@@ -76,11 +76,13 @@ def test_settings_resolve_cloud_from_uri(monkeypatch: pytest.MonkeyPatch):
 
     monkeypatch.delenv("RP_LOCAL_ROOT", raising=False)
     monkeypatch.setenv("RP_STORAGE_URI", "s3://research-bucket")
+    monkeypatch.setenv("RP_SCRATCH_URI", "s3://research-scratch")
     get_settings.cache_clear()
     try:
         settings = get_settings()
         assert settings.cloud == Cloud.AWS
         assert settings.root_uri == "s3://research-bucket"
+        assert settings.scratch_root_uri == "s3://research-scratch"
     finally:
         get_settings.cache_clear()
 
@@ -95,5 +97,32 @@ def test_settings_reject_a_contradictory_explicit_cloud(monkeypatch: pytest.Monk
     try:
         with pytest.raises(Exception, match="does not start with"):
             get_settings()
+    finally:
+        get_settings.cache_clear()
+
+
+def test_settings_reject_cross_cloud_scratch(monkeypatch: pytest.MonkeyPatch):
+    from jobs.common.config import get_settings
+
+    monkeypatch.delenv("RP_LOCAL_ROOT", raising=False)
+    monkeypatch.setenv("RP_STORAGE_URI", "gs://research-data")
+    monkeypatch.setenv("RP_SCRATCH_URI", "s3://research-scratch")
+    get_settings.cache_clear()
+    try:
+        with pytest.raises(Exception, match="does not start with"):
+            get_settings()
+    finally:
+        get_settings.cache_clear()
+
+
+def test_stage_environment_matches_live_root(monkeypatch: pytest.MonkeyPatch):
+    from jobs.common.config import get_settings
+
+    monkeypatch.delenv("RP_LOCAL_ROOT", raising=False)
+    monkeypatch.setenv("RP_ENV", "stage")
+    monkeypatch.setenv("RP_STORAGE_URI", "gs://research-stage-data")
+    get_settings.cache_clear()
+    try:
+        assert get_settings().env == "stage"
     finally:
         get_settings.cache_clear()

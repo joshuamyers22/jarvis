@@ -12,7 +12,10 @@ replaced; object storage and the Airflow metadata database carry state.
 | Batch runner | Per job | Executes compute-intensive job modules |
 | Feed node | Always on | Runs a long-lived websocket consumer |
 | Notebook node | On demand | Interactive research in the production image |
-| Object storage | Durable | Parquet, artifacts, markers, and remote logs |
+| Data object storage | Durable | Raw/derived data, artifacts, and completion markers |
+| Log object storage | Operational | Airflow remote task logs |
+| Scratch object storage | Temporary | Job and notebook intermediates |
+| Backup object storage | Recovery | Exports and restore artifacts; no runtime access |
 
 ## Execution flow
 
@@ -56,15 +59,20 @@ potentially conflicting SDK trees.
 ## Storage contract
 
 ```text
-<storage-root>/
+<data-root>/
 ├── raw/<source>/<dataset>/dt=YYYY-MM-DD/part-*.parquet
 ├── derived/<dataset>/dt=YYYY-MM-DD/part-*.parquet
-├── artifacts/<job>/<run-id>/
-└── airflow-logs/
+└── artifacts/<job>/<run-id>/
+
+<airflow-logs-root>/
+<scratch-root>/
+<backup-root>/
 ```
 
 Hive-style partitions allow query pruning. The harness makes completed
 partitions idempotent unless `--force` is supplied.
+See [Storage classes and access boundaries](storage-classes.md) for IAM,
+provider mappings, and migration requirements.
 
 ## Invariants
 

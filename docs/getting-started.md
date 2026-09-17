@@ -31,6 +31,7 @@ Set these development values in `.env`:
 RP_ENV=dev
 RP_LOCAL_ROOT=.local-data
 RP_STORAGE_URI=gs://unused-in-local-mode
+RP_SCRATCH_URI=gs://unused-scratch-in-local-mode
 IMAGE=research-platform
 IMAGE_TAG=dev
 ```

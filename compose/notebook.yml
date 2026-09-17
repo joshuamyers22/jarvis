@@ -14,6 +14,7 @@ services:
     environment:
       RP_ENV: ${RP_ENV}
       RP_STORAGE_URI: ${RP_STORAGE_URI}
+      RP_SCRATCH_URI: ${RP_SCRATCH_URI}
       RP_CLOUD: ${RP_CLOUD:-}
       RP_PROJECT_ID: ${RP_PROJECT_ID:-}
       RP_REGION: ${RP_REGION:-}

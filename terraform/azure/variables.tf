@@ -22,6 +22,24 @@ variable "container_name" {
   default = "research"
 }
 
+variable "airflow_log_container_name" {
+  type        = string
+  default     = "airflow-logs"
+  description = "Private container dedicated to Airflow task logs."
+}
+
+variable "scratch_container_name" {
+  type        = string
+  default     = "scratch"
+  description = "Private container for temporary job and notebook scratch data."
+}
+
+variable "backup_container_name" {
+  type        = string
+  default     = "backups"
+  description = "Private container reserved for backup and restore artifacts."
+}
+
 variable "db_sku" {
   type    = string
   default = "B_Standard_B1ms"

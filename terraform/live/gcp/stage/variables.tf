@@ -26,6 +26,21 @@ variable "bucket_name" {
   description = "Globally unique staging data bucket name."
 }
 
+variable "airflow_log_bucket_name" {
+  type        = string
+  description = "Globally unique staging Airflow-log bucket name."
+}
+
+variable "scratch_bucket_name" {
+  type        = string
+  description = "Globally unique staging scratch bucket name."
+}
+
+variable "backup_bucket_name" {
+  type        = string
+  description = "Globally unique staging backup bucket name."
+}
+
 variable "billing_account_id" {
   type        = string
   description = "Cloud Billing account that owns the staging budget."

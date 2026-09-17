@@ -43,6 +43,10 @@ resource "google_cloud_run_v2_job" "research" {
           value = "gs://${google_storage_bucket.data.name}"
         }
         env {
+          name  = "RP_SCRATCH_URI"
+          value = "gs://${google_storage_bucket.scratch.name}"
+        }
+        env {
           name  = "RP_CLOUD"
           value = "gcp"
         }

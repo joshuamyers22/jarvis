@@ -23,10 +23,34 @@ resource "azurerm_storage_container" "data" {
   name                  = var.container_name
   storage_account_id    = azurerm_storage_account.data.id
   container_access_type = "private"
+
+  lifecycle {
+    precondition {
+      condition = length(toset([
+        var.container_name,
+        var.airflow_log_container_name,
+        var.scratch_container_name,
+        var.backup_container_name,
+      ])) == 4
+      error_message = "Data, Airflow-log, scratch, and backup containers must use distinct names."
+    }
+  }
 }
 
 resource "azurerm_storage_container" "logs" {
-  name                  = "airflow-logs"
+  name                  = var.airflow_log_container_name
+  storage_account_id    = azurerm_storage_account.data.id
+  container_access_type = "private"
+}
+
+resource "azurerm_storage_container" "scratch" {
+  name                  = var.scratch_container_name
+  storage_account_id    = azurerm_storage_account.data.id
+  container_access_type = "private"
+}
+
+resource "azurerm_storage_container" "backup" {
+  name                  = var.backup_container_name
   storage_account_id    = azurerm_storage_account.data.id
   container_access_type = "private"
 }
@@ -55,7 +79,7 @@ resource "azurerm_storage_management_policy" "lifecycle" {
     name    = "expire-logs"
     enabled = true
     filters {
-      prefix_match = ["airflow-logs/"]
+      prefix_match = ["${var.airflow_log_container_name}/"]
       blob_types   = ["blockBlob"]
     }
     actions {

@@ -58,6 +58,9 @@ required=(
   JARVIS_TFSTATE_BUCKET
   TF_VAR_project_id
   TF_VAR_bucket_name
+  TF_VAR_airflow_log_bucket_name
+  TF_VAR_scratch_bucket_name
+  TF_VAR_backup_bucket_name
   TF_VAR_billing_account_id
   TF_VAR_alert_email
   TF_VAR_monthly_budget_usd

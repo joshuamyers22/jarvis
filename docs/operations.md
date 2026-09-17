@@ -33,6 +33,9 @@ Keep cross-project data variables empty unless the source owner approved the
 resource, workload, and role under the
 [GCP data-access procedure](gcp-data-access.md). Review the resulting
 `data_access_contract` output with every live plan.
+Review the four-location [storage contract](storage-classes.md) before applying:
+the existing data location must remain in place, logs and scratch receive only
+their named workload identities, and backup storage has no runtime member.
 
 ```bash
 scripts/gcp-live.sh dev validate
@@ -47,6 +50,8 @@ Do not commit backend credentials, variable files, plans, or state.
 - Keep `.env` mode `0600` and out of Git.
 - Use workload identity and the provider secret store, not downloaded keys.
 - Keep `RP_STORAGE_URI` and `AIRFLOW_REMOTE_LOGS` on the same provider.
+- Set `RP_SCRATCH_URI` from Terraform's `scratch_uri` output and keep
+  `AIRFLOW_REMOTE_LOGS` on the dedicated `airflow_logs_uri`.
 - Pin `IMAGE_TAG` to a Git SHA.
 - Retain loopback bindings for Airflow and Jupyter.
 

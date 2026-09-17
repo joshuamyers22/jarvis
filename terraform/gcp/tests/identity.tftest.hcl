@@ -37,6 +37,9 @@ variables {
   project_id                 = "jarvis-research-dev"
   env                        = "dev"
   bucket_name                = "jarvis-research-dev-data"
+  airflow_log_bucket_name    = "jarvis-research-dev-airflow-logs"
+  scratch_bucket_name        = "jarvis-research-dev-scratch"
+  backup_bucket_name         = "jarvis-research-dev-backup"
   billing_account_id         = "000000-000000-000000"
   alert_email                = "operations@example.com"
   monthly_budget_usd         = 500
@@ -133,6 +136,7 @@ run "least_privilege_identity_contract" {
       google_cloud_run_v2_job_iam_member.control_executor.role == "roles/run.jobsExecutorWithOverrides" &&
       google_project_iam_member.control_sql_client.role == "roles/cloudsql.client" &&
       google_storage_bucket_iam_member.control_logs.role == "roles/storage.objectAdmin" &&
+      google_storage_bucket_iam_member.control_logs.bucket == google_storage_bucket.airflow_logs.name &&
       google_secret_manager_secret_iam_member.control_db_password.role == "roles/secretmanager.secretAccessor"
     )
     error_message = "The control role must be limited to job execution, metadata database access, logs, and its database secret."
@@ -141,10 +145,32 @@ run "least_privilege_identity_contract" {
   assert {
     condition = (
       google_storage_bucket_iam_member.job_data.role == "roles/storage.objectAdmin" &&
+      google_storage_bucket_iam_member.job_data.bucket == google_storage_bucket.data.name &&
       google_storage_bucket_iam_member.feed_write.role == "roles/storage.objectCreator" &&
-      google_storage_bucket_iam_member.notebook_read.role == "roles/storage.objectViewer"
+      google_storage_bucket_iam_member.feed_write.bucket == google_storage_bucket.data.name &&
+      google_storage_bucket_iam_member.notebook_read.role == "roles/storage.objectViewer" &&
+      google_storage_bucket_iam_member.notebook_read.bucket == google_storage_bucket.data.name &&
+      google_storage_bucket_iam_member.job_scratch.role == "roles/storage.objectAdmin" &&
+      google_storage_bucket_iam_member.job_scratch.bucket == google_storage_bucket.scratch.name &&
+      google_storage_bucket_iam_member.notebook_scratch.role == "roles/storage.objectAdmin" &&
+      google_storage_bucket_iam_member.notebook_scratch.bucket == google_storage_bucket.scratch.name
     )
     error_message = "Job, feed, and notebook storage privileges must remain distinct."
+  }
+
+  assert {
+    condition = (
+      toset(keys(output.storage_locations)) == toset(["data", "airflow_logs", "scratch", "backup"]) &&
+      output.storage_contract.data.versioning &&
+      !output.storage_contract.airflow_logs.versioning &&
+      !output.storage_contract.scratch.versioning &&
+      output.storage_contract.backup.versioning &&
+      length(output.storage_contract.backup.workload_roles) == 0 &&
+      toset(keys(output.storage_contract.data.workload_roles)) == toset(["job", "feed", "notebook"]) &&
+      toset(keys(output.storage_contract.airflow_logs.workload_roles)) == toset(["control"]) &&
+      toset(keys(output.storage_contract.scratch.workload_roles)) == toset(["job", "notebook"])
+    )
+    error_message = "Storage locations must be physically distinct and expose only their intended workload roles."
   }
 
   assert {
@@ -243,4 +269,14 @@ run "automation_operator_is_rejected" {
   }
 
   expect_failures = [var.operator_principals]
+}
+
+run "duplicate_storage_boundaries_are_rejected" {
+  command = plan
+
+  variables {
+    backup_bucket_name = "jarvis-research-dev-data"
+  }
+
+  expect_failures = [var.backup_bucket_name]
 }

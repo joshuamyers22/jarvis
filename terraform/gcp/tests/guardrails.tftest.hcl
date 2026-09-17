@@ -37,6 +37,9 @@ variables {
   project_id                   = "jarvis-research-dev"
   env                          = "dev"
   bucket_name                  = "jarvis-research-dev-data"
+  airflow_log_bucket_name      = "jarvis-research-dev-airflow-logs"
+  scratch_bucket_name          = "jarvis-research-dev-scratch"
+  backup_bucket_name           = "jarvis-research-dev-backup"
   billing_account_id           = "000000-000000-000000"
   alert_email                  = "operations@example.com"
   monthly_budget_usd           = 500
@@ -131,7 +134,8 @@ run "project_guardrail_contract" {
       !output.guardrails.deletion_protection.cloud_sql &&
       !output.guardrails.deletion_protection.cloud_run_job &&
       alltrue([for protected in values(output.guardrails.deletion_protection.compute) : !protected]) &&
-      !output.guardrails.deletion_protection.bucket_force_destroy
+      !output.guardrails.deletion_protection.bucket_force_destroy &&
+      alltrue([for force_destroy in values(output.guardrails.deletion_protection.storage_force_destroy) : !force_destroy])
     )
     error_message = "Development must be disposable explicitly while destructive bucket deletion remains disabled."
   }

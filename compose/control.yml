@@ -50,6 +50,7 @@ x-airflow-common: &airflow-common
     # --- application ---------------------------------------------------------
     RP_ENV: ${RP_ENV}
     RP_STORAGE_URI: ${RP_STORAGE_URI}
+    RP_SCRATCH_URI: ${RP_SCRATCH_URI}
     RP_CLOUD: ${RP_CLOUD:-}
     RP_BATCH_JOB_NAME: ${RP_BATCH_JOB_NAME:-research-job}
     RP_BATCH_JOB_QUEUE: ${RP_BATCH_JOB_QUEUE:-}

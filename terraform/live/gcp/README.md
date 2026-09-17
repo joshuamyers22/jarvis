@@ -4,13 +4,14 @@ These roots are the only supported entry points for deploying Jarvis on GCP.
 Each root hardcodes its environment identity, address space, and remote-state
 prefix while composing the reusable platform and private-network modules.
 
-| Root | State prefix | Workload / private-service CIDRs | Deletion protection | Raw/log lifecycle |
+| Root | State prefix | Workload / private-service CIDRs | Deletion protection | Raw transition |
 |---|---|---|---|---|
-| `dev` | `environments/dev` | `10.10.0.0/20` / `10.10.240.0/20` | Off for SQL, VMs, and batch job | 30/30 days |
-| `stage` | `environments/stage` | `10.20.0.0/20` / `10.20.240.0/20` | On for SQL, VMs, and batch job | 60/90 days |
-| `prod` | `environments/prod` | `10.30.0.0/20` / `10.30.240.0/20` | On for SQL, VMs, and batch job | 90/180 days |
+| `dev` | `environments/dev` | `10.10.0.0/20` / `10.10.240.0/20` | Off for SQL, VMs, and batch job | 30 days |
+| `stage` | `environments/stage` | `10.20.0.0/20` / `10.20.240.0/20` | On for SQL, VMs, and batch job | 60 days |
+| `prod` | `environments/prod` | `10.30.0.0/20` / `10.30.240.0/20` | On for SQL, VMs, and batch job | 90 days |
 
-Project IDs and data buckets are explicit inputs. Use a distinct GCP project for
+Project IDs and the four data/log/scratch/backup buckets are explicit inputs.
+Use a distinct GCP project for
 every root; its ID must end in `-dev`, `-stage`, or `-prod` to match the root.
 Terraform owns one custom-mode VPC per environment, including its regional
 subnet, Private Google Access, Cloud NAT, private services allocation, private
@@ -50,6 +51,8 @@ IDs, approved budget inputs, alert routing, cross-project data declarations, and
 credential references. Prefer
 ADC plus short-lived service-account impersonation; never paste credential JSON
 or a GitHub token into them. Budgets notify but don't stop spending.
+The [storage-class runbook](../../../docs/storage-classes.md) defines the output
+mapping and staged migration for an environment that already contains logs.
 
 ## Plan and apply
 

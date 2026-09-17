@@ -16,6 +16,9 @@ mock_provider "random" {}
 variables {
   project_id                 = "jarvis-research-stage"
   bucket_name                = "jarvis-research-stage-data"
+  airflow_log_bucket_name    = "jarvis-research-stage-airflow-logs"
+  scratch_bucket_name        = "jarvis-research-stage-scratch"
+  backup_bucket_name         = "jarvis-research-stage-backup"
   billing_account_id         = "000000-000000-000000"
   alert_email                = "operations@example.com"
   monthly_budget_usd         = 1000
@@ -42,6 +45,17 @@ run "staging_boundary" {
   assert {
     condition     = output.project_id == "jarvis-research-stage"
     error_message = "The configured staging project must reach the platform module unchanged."
+  }
+
+  assert {
+    condition = (
+      output.storage_locations.data == "gs://jarvis-research-stage-data" &&
+      output.storage_locations.airflow_logs == "gs://jarvis-research-stage-airflow-logs" &&
+      output.storage_locations.scratch == "gs://jarvis-research-stage-scratch" &&
+      output.storage_locations.backup == "gs://jarvis-research-stage-backup" &&
+      length(output.storage_contract.backup.workload_roles) == 0
+    )
+    error_message = "Staging must keep data, logs, scratch, and backup in separate storage boundaries."
   }
 
   assert {

@@ -31,6 +31,51 @@ variable "env" {
 variable "bucket_name" {
   type        = string
   description = "Globally unique data bucket name."
+
+  validation {
+    condition     = can(regex("^[a-z0-9][a-z0-9._-]{1,61}[a-z0-9]$", var.bucket_name))
+    error_message = "bucket_name must be a valid 3-63 character Cloud Storage bucket name."
+  }
+}
+
+variable "airflow_log_bucket_name" {
+  type        = string
+  description = "Globally unique bucket dedicated to Airflow task logs."
+
+  validation {
+    condition     = can(regex("^[a-z0-9][a-z0-9._-]{1,61}[a-z0-9]$", var.airflow_log_bucket_name))
+    error_message = "airflow_log_bucket_name must be a valid 3-63 character Cloud Storage bucket name."
+  }
+}
+
+variable "scratch_bucket_name" {
+  type        = string
+  description = "Globally unique bucket for temporary job and notebook scratch data."
+
+  validation {
+    condition     = can(regex("^[a-z0-9][a-z0-9._-]{1,61}[a-z0-9]$", var.scratch_bucket_name))
+    error_message = "scratch_bucket_name must be a valid 3-63 character Cloud Storage bucket name."
+  }
+}
+
+variable "backup_bucket_name" {
+  type        = string
+  description = "Globally unique bucket reserved for backup and restore artifacts."
+
+  validation {
+    condition     = can(regex("^[a-z0-9][a-z0-9._-]{1,61}[a-z0-9]$", var.backup_bucket_name))
+    error_message = "backup_bucket_name must be a valid 3-63 character Cloud Storage bucket name."
+  }
+
+  validation {
+    condition = length(toset([
+      var.bucket_name,
+      var.airflow_log_bucket_name,
+      var.scratch_bucket_name,
+      var.backup_bucket_name,
+    ])) == 4
+    error_message = "Data, Airflow-log, scratch, and backup buckets must use distinct names."
+  }
 }
 
 variable "billing_account_id" {

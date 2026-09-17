@@ -226,7 +226,7 @@ resource "google_project_iam_member" "control_sql_client" {
 }
 
 resource "google_storage_bucket_iam_member" "control_logs" {
-  bucket = google_storage_bucket.data.name
+  bucket = google_storage_bucket.airflow_logs.name
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${google_service_account.roles["control"].email}"
 }
@@ -251,6 +251,22 @@ resource "google_storage_bucket_iam_member" "notebook_read" {
   role   = "roles/storage.objectViewer"
   member = "serviceAccount:${google_service_account.roles["notebook"].email}"
 }
+
+# --- scratch: writable only by compute and interactive research -------------
+resource "google_storage_bucket_iam_member" "job_scratch" {
+  bucket = google_storage_bucket.scratch.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.roles["job"].email}"
+}
+
+resource "google_storage_bucket_iam_member" "notebook_scratch" {
+  bucket = google_storage_bucket.scratch.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.roles["notebook"].email}"
+}
+
+# No runtime identity receives backup-bucket access. P2.3/P2.5 will attach a
+# dedicated backup/restore principal when the recovery workflows are defined.
 
 # Secret access is granted per secret, never project-wide.
 resource "google_secret_manager_secret_iam_member" "control_db_password" {

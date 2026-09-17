@@ -53,6 +53,12 @@ output "guardrails" {
         notebook = google_compute_instance.notebook.deletion_protection
       }
       bucket_force_destroy = google_storage_bucket.data.force_destroy
+      storage_force_destroy = {
+        data         = google_storage_bucket.data.force_destroy
+        airflow_logs = google_storage_bucket.airflow_logs.force_destroy
+        scratch      = google_storage_bucket.scratch.force_destroy
+        backup       = google_storage_bucket.backup.force_destroy
+      }
     }
     shielded_compute = {
       for name, instance in {
@@ -131,6 +137,78 @@ output "storage_uri" {
   value = "gs://${google_storage_bucket.data.name}"
 }
 
+output "airflow_logs_uri" {
+  value = "gs://${google_storage_bucket.airflow_logs.name}"
+}
+
+output "scratch_uri" {
+  value = "gs://${google_storage_bucket.scratch.name}"
+}
+
+output "backup_uri" {
+  value = "gs://${google_storage_bucket.backup.name}"
+}
+
+output "storage_locations" {
+  value = {
+    data         = "gs://${google_storage_bucket.data.name}"
+    airflow_logs = "gs://${google_storage_bucket.airflow_logs.name}"
+    scratch      = "gs://${google_storage_bucket.scratch.name}"
+    backup       = "gs://${google_storage_bucket.backup.name}"
+  }
+}
+
+output "storage_contract" {
+  value = {
+    data = {
+      uri               = "gs://${google_storage_bucket.data.name}"
+      versioning        = google_storage_bucket.data.versioning[0].enabled
+      public_prevention = google_storage_bucket.data.public_access_prevention
+      workload_access = {
+        job      = "writer"
+        feed     = "creator"
+        notebook = "reader"
+      }
+      workload_roles = {
+        job      = google_storage_bucket_iam_member.job_data.role
+        feed     = google_storage_bucket_iam_member.feed_write.role
+        notebook = google_storage_bucket_iam_member.notebook_read.role
+      }
+    }
+    airflow_logs = {
+      uri               = "gs://${google_storage_bucket.airflow_logs.name}"
+      versioning        = google_storage_bucket.airflow_logs.versioning[0].enabled
+      public_prevention = google_storage_bucket.airflow_logs.public_access_prevention
+      workload_access = {
+        control = "writer"
+      }
+      workload_roles = {
+        control = google_storage_bucket_iam_member.control_logs.role
+      }
+    }
+    scratch = {
+      uri               = "gs://${google_storage_bucket.scratch.name}"
+      versioning        = google_storage_bucket.scratch.versioning[0].enabled
+      public_prevention = google_storage_bucket.scratch.public_access_prevention
+      workload_access = {
+        job      = "writer"
+        notebook = "writer"
+      }
+      workload_roles = {
+        job      = google_storage_bucket_iam_member.job_scratch.role
+        notebook = google_storage_bucket_iam_member.notebook_scratch.role
+      }
+    }
+    backup = {
+      uri               = "gs://${google_storage_bucket.backup.name}"
+      versioning        = google_storage_bucket.backup.versioning[0].enabled
+      public_prevention = google_storage_bucket.backup.public_access_prevention
+      workload_access   = {}
+      workload_roles    = {}
+    }
+  }
+}
+
 output "registry" {
   value = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.images.repository_id}"
 }
@@ -198,6 +276,7 @@ output "iam_contract" {
       ])
       job = sort([
         google_storage_bucket_iam_member.job_data.role,
+        google_storage_bucket_iam_member.job_scratch.role,
         google_artifact_registry_repository_iam_member.runtime_readers["job"].role,
       ])
       feed = sort([
@@ -206,6 +285,7 @@ output "iam_contract" {
       ])
       notebook = sort([
         google_storage_bucket_iam_member.notebook_read.role,
+        google_storage_bucket_iam_member.notebook_scratch.role,
         google_artifact_registry_repository_iam_member.runtime_readers["notebook"].role,
       ])
       ci = [google_artifact_registry_repository_iam_member.ci_writer.role]
