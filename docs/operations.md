@@ -51,6 +51,9 @@ Seed and rotate credentials only through the
 identifiers, never values.
 Apply and exercise the [quarterly recovery contract](recovery-drills.md) in
 staging before claiming the provisional RPO or RTO.
+Build, inspect, replace, and roll back GCP VM prerequisites only through the
+[immutable host-image procedure](host-images.md). A host package update is an
+image replacement, never an SSH or startup-script mutation.
 
 ```bash
 scripts/gcp-live.sh dev validate

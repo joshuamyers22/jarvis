@@ -131,3 +131,19 @@ variable "notebook_machine_type" {
   type    = string
   default = "n2-standard-4"
 }
+
+variable "host_images" {
+  type = object({
+    control  = string
+    feed     = string
+    notebook = string
+  })
+  description = "Reviewed immutable host image references for development VMs."
+}
+
+variable "host_replacement_role" {
+  type        = string
+  description = "One VM role approved for host image replacement."
+  default     = null
+  nullable    = true
+}

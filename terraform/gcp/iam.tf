@@ -12,7 +12,7 @@ locals {
   }
 
   automation_service_accounts = {
-    deployer = "Terraform infrastructure deployment"
+    deployer = "Terraform infrastructure and host-image deployment"
     ci       = "GitHub Actions image publishing"
     recovery = "Non-production recovery drill automation"
   }
@@ -51,6 +51,19 @@ locals {
   ])
 
   ssh_service_accounts = toset(["control", "feed", "notebook"])
+
+  vm_service_accounts = toset(["control", "feed", "notebook"])
+  vm_observability_roles = toset([
+    "roles/logging.logWriter",
+    "roles/monitoring.metricWriter",
+  ])
+  vm_observability_bindings = {
+    for pair in setproduct(local.vm_service_accounts, local.vm_observability_roles) :
+    "${pair[0]} ${pair[1]}" => {
+      service_account = pair[0]
+      role            = pair[1]
+    }
+  }
 
   operator_service_account_bindings = {
     for pair in setproduct(var.operator_principals, local.ssh_service_accounts) :
@@ -94,6 +107,31 @@ resource "google_service_account_iam_member" "deployer_act_as" {
   service_account_id = google_service_account.roles[each.key].name
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${google_service_account.roles["deployer"].email}"
+}
+
+# Packer uses the deployer identity to create a private temporary VM and
+# reaches it only through an SSH tunnel. The condition prevents other IAP TCP
+# forwarding. The temporary VM itself has no service account.
+resource "google_project_iam_member" "deployer_iap_ssh" {
+  project = var.project_id
+  role    = "roles/iap.tunnelResourceAccessor"
+  member  = "serviceAccount:${google_service_account.roles["deployer"].email}"
+
+  condition {
+    title       = "deployer-image-build-ssh-only"
+    description = "Allow the Terraform deployer to reach private Packer builders only over SSH."
+    expression  = "destination.port == 22"
+  }
+}
+
+# Every long-lived VM identity can emit host telemetry. The temporary Packer
+# builder deliberately has no service account at all.
+resource "google_project_iam_member" "vm_observability" {
+  for_each = local.vm_observability_bindings
+
+  project = var.project_id
+  role    = each.value.role
+  member  = "serviceAccount:${google_service_account.roles[each.value.service_account].email}"
 }
 
 resource "google_service_account_iam_member" "deployer_impersonators" {

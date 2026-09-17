@@ -45,6 +45,7 @@ jobs:
             terraform -chdir="terraform/$module" init -backend=false -input=false
             terraform -chdir="terraform/$module" validate
           done
+
       - name: Test GCP state bootstrap controls
         run: terraform -chdir=terraform/bootstrap/gcp test
       - name: Test GCP private network controls
@@ -60,6 +61,18 @@ jobs:
           for environment in dev stage prod; do
             terraform -chdir="terraform/live/gcp/$environment" test
           done
+
+  host-image-template:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: hashicorp/setup-packer@ce93c3c08a6c2ff2275bf4b54ff0d9a75f6c9789 # v3.4.0
+        with:
+          version: "1.16.0"
+      - run: packer init packer/gcp
+      - run: packer fmt -check packer/gcp
+      - run: packer validate -var-file=packer/gcp/ci.pkrvars.hcl packer/gcp
+      - run: bash -n scripts/build-gcp-host-image.sh packer/gcp/scripts/*.sh
 
   security:
     runs-on: ubuntu-latest
@@ -79,7 +92,7 @@ jobs:
   # Build every provider image on pull requests as well as main. This job never
   # receives cloud credentials and never pushes an image.
   image-test:
-    needs: [lint-and-test, terraform, security]
+    needs: [lint-and-test, terraform, host-image-template, security]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

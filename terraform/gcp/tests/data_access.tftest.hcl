@@ -70,6 +70,11 @@ variables {
   github_repository_owner_id   = "987654321"
   github_environment           = "development"
   workload_deletion_protection = false
+  host_images = {
+    control  = "projects/jarvis-research-dev/global/images/jarvis-host-0123456789ab-202609170000"
+    feed     = "projects/jarvis-research-dev/global/images/jarvis-host-0123456789ab-202609170000"
+    notebook = "projects/jarvis-research-dev/global/images/jarvis-host-0123456789ab-202609170000"
+  }
   shared_storage_buckets = {
     shared-research-data = {
       project_id         = "shared-research-data"
@@ -148,11 +153,11 @@ run "approved_resources_are_narrowly_bound" {
 
   assert {
     condition = (
-      toset(output.iam_contract.runtime_project_roles.control) == toset(["roles/cloudsql.client"]) &&
-      length(output.iam_contract.runtime_project_roles.feed) == 0 &&
+      toset(output.iam_contract.runtime_project_roles.control) == toset(["roles/cloudsql.client", "roles/logging.logWriter", "roles/monitoring.metricWriter"]) &&
+      toset(output.iam_contract.runtime_project_roles.feed) == toset(["roles/logging.logWriter", "roles/monitoring.metricWriter"]) &&
       length(output.iam_contract.runtime_project_roles.ci) == 0 &&
       toset(output.iam_contract.runtime_project_roles.job) == toset(["roles/bigquery.jobUser"]) &&
-      toset(output.iam_contract.runtime_project_roles.notebook) == toset(["roles/bigquery.jobUser"])
+      toset(output.iam_contract.runtime_project_roles.notebook) == toset(["roles/bigquery.jobUser", "roles/logging.logWriter", "roles/monitoring.metricWriter"])
     )
     error_message = "Cross-project declarations must not expand control, feed, or CI project permissions."
   }

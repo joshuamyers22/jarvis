@@ -388,6 +388,35 @@ variable "workload_deletion_protection" {
   default     = true
 }
 
+variable "host_replacement_role" {
+  type        = string
+  description = "One VM role whose deletion protection is temporarily disabled for a reviewed image replacement."
+  default     = null
+  nullable    = true
+
+  validation {
+    condition     = var.host_replacement_role == null || contains(["control", "feed", "notebook"], var.host_replacement_role)
+    error_message = "host_replacement_role must be null, control, feed, or notebook."
+  }
+}
+
+variable "host_images" {
+  type = object({
+    control  = string
+    feed     = string
+    notebook = string
+  })
+  description = "Immutable, project-qualified GCE host image references for each VM role."
+
+  validation {
+    condition = alltrue([
+      for image in values(var.host_images) :
+      can(regex("^projects/[a-z][a-z0-9-]{4,28}[a-z0-9]/global/images/jarvis-host-[0-9a-f]{12}-[0-9]{12}$", image))
+    ])
+    error_message = "Every host image must be an exact projects/<project>/global/images/jarvis-host-<12-char-sha>-<YYYYMMDDHHMM> reference; families and latest aliases are forbidden."
+  }
+}
+
 variable "control_machine_type" {
   type        = string
   default     = "e2-small"

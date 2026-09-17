@@ -51,6 +51,11 @@ variables {
   github_repository_owner_id   = "987654321"
   github_environment           = "development"
   workload_deletion_protection = false
+  host_images = {
+    control  = "projects/jarvis-research-dev/global/images/jarvis-host-0123456789ab-202609170000"
+    feed     = "projects/jarvis-research-dev/global/images/jarvis-host-0123456789ab-202609170000"
+    notebook = "projects/jarvis-research-dev/global/images/jarvis-host-0123456789ab-202609170000"
+  }
   labels = {
     owner       = "platform"
     cost_center = "research"

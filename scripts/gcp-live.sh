@@ -6,7 +6,7 @@ set -euo pipefail
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 
 usage() {
-  echo "usage: $0 <dev|stage|prod> <validate|plan|apply|output>" >&2
+  echo "usage: $0 <dev|stage|prod> <validate|network-plan|network-apply|plan|apply|output>" >&2
   exit 2
 }
 
@@ -18,7 +18,7 @@ case "$environment" in
   *) usage ;;
 esac
 case "$action" in
-  validate | plan | apply | output) ;;
+  validate | network-plan | network-apply | plan | apply | output) ;;
   *) usage ;;
 esac
 
@@ -71,6 +71,7 @@ required=(
   TF_VAR_github_repository_owner_id
   TF_VAR_shared_storage_buckets
   TF_VAR_shared_bigquery_datasets
+  TF_VAR_host_images
 )
 for name in "${required[@]}"; do
   value=${!name:-}
@@ -105,6 +106,20 @@ case "$action" in
     terraform -chdir="$stack_dir" init -backend=false -input=false
     terraform -chdir="$stack_dir" validate
     terraform -chdir="$stack_dir" test
+    ;;
+  network-plan)
+    init_remote
+    echo "initial bootstrap only: planning the private network target" >&2
+    terraform -chdir="$stack_dir" plan -input=false -lock-timeout=5m \
+      -target=module.network -out=network.tfplan
+    ;;
+  network-apply)
+    [[ -f "${stack_dir}/network.tfplan" ]] || {
+      echo "missing network.tfplan; run '$0 $environment network-plan' first" >&2
+      exit 1
+    }
+    init_remote
+    terraform -chdir="$stack_dir" apply -lock-timeout=5m network.tfplan
     ;;
   plan)
     init_remote

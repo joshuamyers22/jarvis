@@ -48,6 +48,9 @@ organization requirements are documented in the
 Cross-project buckets and BigQuery datasets remain denied by default and are
 declared through the reviewed, resource-scoped contract in the
 [GCP data-access runbook](../docs/gcp-data-access.md).
+The control, feed, and notebook instances accept only exact versioned GCE image
+references; build and replace them with the
+[GCP host-image runbook](../docs/host-images.md).
 
 Each module produces the same outputs, which is where the abstraction does
 hold: `storage_uri`, `storage_locations`, `storage_contract`,

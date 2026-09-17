@@ -93,6 +93,8 @@ module "platform" {
   db_maintenance_hour               = 6
   db_maintenance_update_track       = "canary"
   workload_deletion_protection      = false
+  host_images                       = var.host_images
+  host_replacement_role             = var.host_replacement_role
   control_machine_type              = var.control_machine_type
   feed_machine_type                 = var.feed_machine_type
   notebook_machine_type             = var.notebook_machine_type

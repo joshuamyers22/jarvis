@@ -17,6 +17,9 @@ Terraform owns one custom-mode VPC per environment, including its regional
 subnet, Private Google Access, Cloud NAT, private services allocation, private
 DNS zone, flow logs, default-deny ingress rule, and IAP-only SSH rule. Instances
 have no external-IP configuration and block project-wide SSH keys.
+They boot from exact `host_images` references and contain no package-installing
+startup script. Build and replace those images through the
+[host-image runbook](../../../docs/host-images.md).
 
 Each root also owns separate deployer, CI, control, job, feed, and notebook
 service accounts. GitHub federation is restricted to the configured immutable
@@ -70,6 +73,10 @@ scripts/gcp-live.sh dev plan
 scripts/gcp-live.sh dev apply
 scripts/gcp-live.sh dev output
 ```
+
+`network-plan` and `network-apply` exist only for the first private-network
+bootstrap needed to build an environment's first host image. Follow the
+host-image runbook and do not use targeted network applies for routine changes.
 
 Plans are local, ignored artifacts. Review the saved plan before applying it.
 There is intentionally no destroy shortcut.

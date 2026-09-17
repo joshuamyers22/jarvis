@@ -25,6 +25,11 @@ variables {
   github_repository          = "example/jarvis"
   github_repository_id       = "123456789"
   github_repository_owner_id = "987654321"
+  host_images = {
+    control  = "projects/jarvis-research-dev/global/images/jarvis-host-0123456789ab-202609170000"
+    feed     = "projects/jarvis-research-dev/global/images/jarvis-host-0123456789ab-202609170000"
+    notebook = "projects/jarvis-research-dev/global/images/jarvis-host-0123456789ab-202609170000"
+  }
 }
 
 run "development_boundary" {

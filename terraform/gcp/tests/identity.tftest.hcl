@@ -50,6 +50,11 @@ variables {
   github_repository_id       = "123456789"
   github_repository_owner_id = "987654321"
   github_environment         = "development"
+  host_images = {
+    control  = "projects/jarvis-research-dev/global/images/jarvis-host-0123456789ab-202609170000"
+    feed     = "projects/jarvis-research-dev/global/images/jarvis-host-0123456789ab-202609170000"
+    notebook = "projects/jarvis-research-dev/global/images/jarvis-host-0123456789ab-202609170000"
+  }
 }
 
 run "least_privilege_identity_contract" {
@@ -114,6 +119,30 @@ run "least_privilege_identity_contract" {
       ])
     )
     error_message = "The deployer may act as each runtime identity, but no automation identity."
+  }
+
+  assert {
+    condition = (
+      google_project_iam_member.deployer_iap_ssh.role == "roles/iap.tunnelResourceAccessor" &&
+      google_project_iam_member.deployer_iap_ssh.condition[0].expression == "destination.port == 22" &&
+      length(google_project_iam_member.vm_observability) == 6 &&
+      alltrue([
+        for binding in google_project_iam_member.vm_observability :
+        contains(["roles/logging.logWriter", "roles/monitoring.metricWriter"], binding.role)
+      ])
+    )
+    error_message = "Private image builds and VM telemetry must use the reviewed IAP and observability grants."
+  }
+
+  assert {
+    condition = (
+      google_compute_instance.control.boot_disk[0].initialize_params[0].image == var.host_images.control &&
+      google_compute_instance.feed.boot_disk[0].initialize_params[0].image == var.host_images.feed &&
+      google_compute_instance.notebook.boot_disk[0].initialize_params[0].image == var.host_images.notebook &&
+      output.host_image_contract.startup_scripts == false &&
+      output.host_image_contract.build_manifest_path == "/etc/jarvis-host-image.json"
+    )
+    error_message = "Every VM role must boot only from its reviewed immutable host image without a startup script."
   }
 
   assert {
@@ -429,5 +458,48 @@ run "production_recovery_automation_is_disabled" {
       !output.recovery_contract.production_access
     )
     error_message = "Automated recovery drills must have no production trust or permissions."
+  }
+}
+
+run "mutable_host_image_reference_is_rejected" {
+  command = plan
+
+  variables {
+    host_images = {
+      control  = "projects/jarvis-research-dev/global/images/family/jarvis-host"
+      feed     = "projects/jarvis-research-dev/global/images/jarvis-host-0123456789ab-202609170000"
+      notebook = "projects/jarvis-research-dev/global/images/jarvis-host-0123456789ab-202609170000"
+    }
+  }
+
+  expect_failures = [var.host_images]
+}
+
+run "unknown_host_replacement_role_is_rejected" {
+  command = plan
+
+  variables {
+    host_replacement_role = "all"
+  }
+
+  expect_failures = [var.host_replacement_role]
+}
+
+run "host_replacement_unlocks_only_one_role" {
+  command = plan
+
+  variables {
+    workload_deletion_protection = true
+    host_replacement_role        = "feed"
+  }
+
+  assert {
+    condition = (
+      google_compute_instance.control.deletion_protection &&
+      !google_compute_instance.feed.deletion_protection &&
+      google_compute_instance.notebook.deletion_protection &&
+      google_cloud_run_v2_job.research.deletion_protection
+    )
+    error_message = "A host replacement may disable deletion protection only for its selected VM role."
   }
 }

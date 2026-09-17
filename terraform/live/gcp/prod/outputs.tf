@@ -14,6 +14,10 @@ output "configuration" {
   value = module.platform.configuration
 }
 
+output "host_image_contract" {
+  value = module.platform.host_image_contract
+}
+
 output "storage_uri" {
   value = module.platform.storage_uri
 }

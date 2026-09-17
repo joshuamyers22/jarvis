@@ -97,6 +97,7 @@ docs/             setup, design, notebook, and operations guides
 - [Data ownership contract](docs/data-ownership.md)
 - [Recovery drills](docs/recovery-drills.md)
 - [Supported build environment](docs/build-environment.md)
+- [GCP host-image build and replacement](docs/host-images.md)
 - [Production boundary decision](docs/adr/0001-production-boundaries.md)
 - [Production functionality plan](PRODUCTION_PLAN.md)
 - [Terraform provider guide](terraform/README.md)

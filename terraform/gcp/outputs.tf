@@ -21,6 +21,21 @@ output "configuration" {
     scratch_retention_days       = var.scratch_delete_after_days
     noncurrent_version_days      = var.noncurrent_version_delete_after_days
     notebook_snapshot_days       = var.notebook_snapshot_retention_days
+    host_images                  = var.host_images
+    host_replacement_role        = var.host_replacement_role
+  }
+}
+
+output "host_image_contract" {
+  description = "Immutable host inputs and replacement semantics for the three VM roles."
+  value = {
+    images              = var.host_images
+    startup_scripts     = false
+    build_manifest_path = "/etc/jarvis-host-image.json"
+    baked_prerequisites = ["docker-ce", "docker-compose-plugin", "google-cloud-ops-agent", "rsync", "os-hardening"]
+    update_strategy     = "change one role image reference and replace that role through a reviewed Terraform plan"
+    rollback_strategy   = "restore the prior exact image reference through a reviewed Terraform plan"
+    replacement_role    = var.host_replacement_role
   }
 }
 
@@ -303,6 +318,7 @@ output "github_oidc" {
 output "iam_contract" {
   value = {
     deployer_project_roles = sort(tolist(local.deployer_project_roles))
+    deployer_iap_condition = google_project_iam_member.deployer_iap_ssh.condition[0].expression
     deployer_principals    = sort(tolist(var.deployer_principals))
     operator_principals    = sort(tolist(var.operator_principals))
     operator_access = {
@@ -315,14 +331,20 @@ output "iam_contract" {
       iap_condition    = google_project_iam_member.operator_iap_ssh[sort(tolist(var.operator_principals))[0]].condition[0].expression
     }
     runtime_project_roles = {
-      control = [google_project_iam_member.control_sql_client.role]
+      control = sort(concat(
+        [google_project_iam_member.control_sql_client.role],
+        tolist(local.vm_observability_roles),
+      ))
       job = contains(local.bigquery_job_workloads, "job") ? [
         google_project_iam_member.shared_bigquery_job_user["job"].role,
       ] : []
-      feed = []
-      notebook = contains(local.bigquery_job_workloads, "notebook") ? [
-        google_project_iam_member.shared_bigquery_job_user["notebook"].role,
-      ] : []
+      feed = sort(tolist(local.vm_observability_roles))
+      notebook = sort(concat(
+        tolist(local.vm_observability_roles),
+        contains(local.bigquery_job_workloads, "notebook") ? [
+          google_project_iam_member.shared_bigquery_job_user["notebook"].role,
+        ] : [],
+      ))
       ci       = []
       recovery = var.env == "prod" ? [] : sort(tolist(local.recovery_project_roles))
     }

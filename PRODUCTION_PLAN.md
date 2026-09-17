@@ -1,6 +1,6 @@
 # Jarvis production functionality plan
 
-Status: active — Phase 2 in progress
+Status: active — Phase 3 in progress
 Prepared: 2026-09-16
 Reference reviewed: [`sixtycapital/infrastructure`](https://github.com/sixtycapital/infrastructure/tree/b6da17b68b9a2be41dbfa616506b70e30ce62c6e), tag `3.4.1`
 
@@ -439,9 +439,22 @@ Exit gate:
 
 Goal: turn the current SSH/Compose scaffold into a repeatable service deployment.
 
-- **P3.1 Replace mutable VM bootstrap.** Build a versioned machine image containing
-  Docker/Compose, the monitoring agent, OS policy, and service prerequisites. Make
-  image updates an explicit replacement process.
+Implementation status (2026-09-17): P3.1 is implemented and locally validated.
+The first live image build and role replacement remain environment evidence;
+P3.2 through P3.6 are not yet complete.
+
+- **P3.1 Replace mutable VM bootstrap — complete locally.** A pinned Packer build
+  now creates a private, Shielded Debian 12 image with exact Docker/Compose and
+  Ops Agent packages, reviewed installer checksums, OS/SSH hardening, bounded
+  container logs, disabled unattended package mutation, and an on-host provenance
+  manifest. The temporary builder has neither an external IP nor a cloud service
+  account. GCP live roots require exact project-qualified image names, have no
+  package-installing startup script, grant telemetry only to long-lived VM roles,
+  and expose a one-role maintenance switch for guarded replacement and rollback.
+  CI validates the Packer template and policy tests enforce the Terraform image
+  contract. The first environment build and replacement still require live GCP
+  evidence under the host-image runbook; Phase 4 will automate promotion and
+  provenance.
 - **P3.2 Add service supervision.** Install systemd units for control, feed, and
   notebook Compose projects so services start after reboot, have bounded restart
   behavior, and expose machine-readable health.

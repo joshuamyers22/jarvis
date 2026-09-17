@@ -1,29 +1,14 @@
-locals {
-  # Docker + compose, then wait. `ctl deploy` does the rest -- startup scripts
-  # that also deploy the app create two competing deploy paths.
-  startup_script = <<-EOT
-    #!/bin/bash
-    set -euo pipefail
-    export DEBIAN_FRONTEND=noninteractive
-    apt-get update
-    apt-get install -y --no-install-recommends docker.io docker-compose
-    rm -rf /var/lib/apt/lists/*
-    usermod -aG docker $(getent passwd 1000 | cut -d: -f1) || true
-    mkdir -p /opt/research
-  EOT
-}
-
 resource "google_compute_instance" "control" {
   name                = "${local.name_prefix}-control"
   machine_type        = var.control_machine_type
   zone                = var.zone
   labels              = local.common_labels
   tags                = ["research", "control"]
-  deletion_protection = var.workload_deletion_protection
+  deletion_protection = var.workload_deletion_protection && var.host_replacement_role != "control"
 
   boot_disk {
     initialize_params {
-      image = "debian-cloud/debian-12"
+      image = var.host_images.control
       size  = 30
     }
   }
@@ -42,6 +27,7 @@ resource "google_compute_instance" "control" {
   metadata = {
     enable-oslogin         = "TRUE"
     block-project-ssh-keys = "TRUE"
+    jarvis-host-image      = var.host_images.control
   }
 
   shielded_instance_config {
@@ -50,7 +36,6 @@ resource "google_compute_instance" "control" {
     enable_integrity_monitoring = true
   }
 
-  metadata_startup_script   = local.startup_script
   allow_stopping_for_update = true
 }
 
@@ -60,11 +45,11 @@ resource "google_compute_instance" "feed" {
   zone                = var.zone
   labels              = local.common_labels
   tags                = ["research", "feed"]
-  deletion_protection = var.workload_deletion_protection
+  deletion_protection = var.workload_deletion_protection && var.host_replacement_role != "feed"
 
   boot_disk {
     initialize_params {
-      image = "debian-cloud/debian-12"
+      image = var.host_images.feed
       size  = 30
     }
   }
@@ -82,6 +67,7 @@ resource "google_compute_instance" "feed" {
   metadata = {
     enable-oslogin         = "TRUE"
     block-project-ssh-keys = "TRUE"
+    jarvis-host-image      = var.host_images.feed
   }
 
 
@@ -91,7 +77,6 @@ resource "google_compute_instance" "feed" {
     enable_integrity_monitoring = true
   }
 
-  metadata_startup_script   = local.startup_script
   allow_stopping_for_update = true
 }
 
@@ -101,13 +86,13 @@ resource "google_compute_instance" "notebook" {
   zone                = var.zone
   labels              = local.common_labels
   tags                = ["research", "notebook"]
-  deletion_protection = var.workload_deletion_protection
+  deletion_protection = var.workload_deletion_protection && var.host_replacement_role != "notebook"
   # Started on demand. Terraform manages its existence, not its power state.
   desired_status = "TERMINATED"
 
   boot_disk {
     initialize_params {
-      image = "debian-cloud/debian-12"
+      image = var.host_images.notebook
       size  = 200
     }
   }
@@ -125,6 +110,7 @@ resource "google_compute_instance" "notebook" {
   metadata = {
     enable-oslogin         = "TRUE"
     block-project-ssh-keys = "TRUE"
+    jarvis-host-image      = var.host_images.notebook
   }
 
 
@@ -134,7 +120,6 @@ resource "google_compute_instance" "notebook" {
     enable_integrity_monitoring = true
   }
 
-  metadata_startup_script   = local.startup_script
   allow_stopping_for_update = true
 }
 

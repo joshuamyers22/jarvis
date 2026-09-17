@@ -1,6 +1,6 @@
 # Adversarial review
 
-Reviewed 2026-08-23. The runtime boundaries are sensible, but this repository
+Reviewed 2026-09-17. The runtime boundaries are sensible, but this repository
 is still a scaffold and must not be treated as production-ready.
 
 ## Fixed in this review
@@ -19,14 +19,15 @@ is still a scaffold and must not be treated as production-ready.
 - Azure batch tasks now enforce the requested Airflow execution timeout.
 - Git and Docker ignore common credential and Terraform secret files; CI has
   least-default permissions and cancellation of superseded runs.
+- GCP control, feed, and notebook hosts now use exact versioned machine-image
+  references built from a pinned, private Packer pipeline; runtime startup
+  scripts no longer install packages.
 
 ## Open deployment blockers
 
 1. Azure ACI dispatch still needs an end-to-end cloud integration test. Its
    maturity remains lower than the GCP and AWS paths.
-2. VM bootstrap uses Debian's signed Docker packages. For stricter release
-   reproducibility, replace bootstrapping with versioned machine images.
-3. The example OHLCV and feed protocols are placeholders. Their schema,
+2. The example OHLCV and feed protocols are placeholders. Their schema,
    authentication, pagination, rate limiting, and malformed-message behavior
    need vendor-specific tests.
 

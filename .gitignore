@@ -3,6 +3,7 @@
 !.env.example
 !terraform/bootstrap/gcp/.env.bootstrap.example
 !terraform/live/gcp/*/.env.live.example
+!packer/gcp/.env.image.example
 *.pem
 *.key
 *.p12

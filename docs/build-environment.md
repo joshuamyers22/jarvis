@@ -9,6 +9,8 @@ lockfile, image scan, smoke-test, and release evidence together.
 | Python | 3.12 only |
 | uv | 0.12.5 |
 | Terraform CLI | 1.13.3 |
+| Packer CLI | 1.16.x |
+| Packer Google Compute plugin | 1.2.7 |
 | Docker Engine | 29.x |
 | Docker Buildx | 0.36.x |
 | Docker Compose | v2 |
@@ -23,3 +25,7 @@ Git tags and image tags are discovery aids, not immutable deployment identity.
 Dependency automation may propose newer tags, but a maintainer must resolve the
 corresponding digest and run the complete clean-build and five-role smoke test
 before merging.
+
+GCP VM prerequisites are built separately as a versioned host image. See the
+[host-image build and replacement runbook](host-images.md); live Terraform uses
+only exact image self-links and never an image family.
