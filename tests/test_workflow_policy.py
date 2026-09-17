@@ -6,6 +6,7 @@ from pathlib import Path
 
 WORKFLOWS = Path(".github/workflows")
 AUTOMATION_CONTRACT = Path("config/automation.toml")
+GITHUB_APPS_CONTRACT = Path("config/github-apps.toml")
 ACTION_REFERENCE = re.compile(r"^[ \t]*(?:-[ \t]+)?uses:[ \t]+([^\s#]+)", re.MULTILINE)
 PINNED_ACTION = re.compile(r"^[^@]+@[0-9a-f]{40}$")
 PULL_REQUEST_TRIGGER = re.compile(r"^[ \t]*pull_request(?:_target)?:", re.MULTILINE)
@@ -102,3 +103,29 @@ def test_all_third_party_actions_are_immutable_pins() -> None:
             assert action.startswith("./") or PINNED_ACTION.fullmatch(action), (
                 f"{path}: action is not SHA-pinned: {action}"
             )
+
+
+def test_github_app_audit_uses_separate_protected_credentials() -> None:
+    contract = tomllib.loads(GITHUB_APPS_CONTRACT.read_text())
+    source = workflow("github-app-boundary.yml")
+
+    assert "workflow_dispatch:" in source
+    assert "schedule:" in source
+    assert source.count("environment: github-app-audit") == 2
+    assert "id-token: write" not in source
+    assert "persist-credentials: false" in source
+    assert "permission-contents: read" in source
+    assert "permission-contents: write" in source
+    assert source.count("permission-metadata: read") == 2
+    assert "permission-pull-requests: write" in source
+
+    for principal in ("ci_reader", "release_bot"):
+        app = contract["apps"][principal]
+        assert f"vars.{app['app_id_variable']}" in source
+        assert f"secrets.{app['private_key_secret']}" in source
+        assert f"--principal {principal}" in source
+
+    assert (
+        "actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349"
+        in source
+    )

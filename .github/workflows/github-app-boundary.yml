@@ -1,0 +1,91 @@
+name: github-app-boundary
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 14 1 */3 *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-app-boundary
+  cancel-in-progress: false
+
+jobs:
+  ci-reader:
+    name: audit CI reader
+    runs-on: ubuntu-latest
+    environment: github-app-audit
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Mint short-lived CI reader token
+        id: app-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ vars.JARVIS_CI_READER_APP_ID }}
+          private-key: ${{ secrets.JARVIS_CI_READER_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          permission-contents: read
+          permission-metadata: read
+      - name: Verify exact CI reader boundary
+        env:
+          GITHUB_APP_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: >-
+          python scripts/github_app_boundary.py
+          --principal ci_reader
+          --evidence evidence/ci-reader.json
+      - name: Retain CI reader audit evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: github-app-ci-reader-boundary
+          path: evidence/ci-reader.json
+          if-no-files-found: error
+          retention-days: 90
+
+  release-bot:
+    name: audit release bot
+    runs-on: ubuntu-latest
+    environment: github-app-audit
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Mint short-lived release bot token
+        id: app-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ vars.JARVIS_RELEASE_BOT_APP_ID }}
+          private-key: ${{ secrets.JARVIS_RELEASE_BOT_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          permission-contents: write
+          permission-metadata: read
+          permission-pull-requests: write
+      - name: Verify exact release bot boundary
+        env:
+          GITHUB_APP_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: >-
+          python scripts/github_app_boundary.py
+          --principal release_bot
+          --evidence evidence/release-bot.json
+      - name: Retain release bot audit evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: github-app-release-bot-boundary
+          path: evidence/release-bot.json
+          if-no-files-found: error
+          retention-days: 90

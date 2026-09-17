@@ -1,6 +1,7 @@
 # Jarvis production functionality plan
 
-Status: active — P4.1 and P4.1b complete locally; P4.1a remains next
+Status: active — P4.1 and P4.1b complete locally; P4.1a implementation complete,
+live organization registration and acceptance evidence pending
 Prepared: 2026-09-16
 Reference reviewed: [`sixtycapital/infrastructure`](https://github.com/sixtycapital/infrastructure/tree/b6da17b68b9a2be41dbfa616506b70e30ce62c6e), tag `3.4.1`
 
@@ -534,10 +535,11 @@ Exit gate:
 
 Goal: replace the reference's mutable daily rollout with auditable releases.
 
-Implementation status (2026-09-17): P4.1 and P4.1b are implemented and locally
-validated. The automation repository's no-bypass ruleset and policy workflow are
-live; Jarvis environment enforcement, the first approved release, and a live
-unauthorized-caller exercise remain evidence. P4.1a is next.
+Implementation status (2026-09-17): P4.1, P4.1a, and P4.1b are implemented and
+locally validated. The automation repository's no-bypass ruleset and policy
+workflow are live; Jarvis environment enforcement, the first approved release,
+the GitHub App registrations and boundary audit, and a live unauthorized-caller
+exercise remain evidence.
 
 - **P4.1 Separate validation from release — complete locally.** Pull requests and
   main-branch CI run unit, architecture, DAG, Terraform, Packer, image smoke,
@@ -550,10 +552,17 @@ unauthorized-caller exercise remain evidence. P4.1a is next.
   release cache namespaces are isolated. Repository policy tests enforce this
   split and full-SHA action pins; the runbook defines ruleset, environment,
   variable, cloud-claim, and live acceptance requirements.
-- **P4.1a Add cross-repository Apps.** Register separate organization-owned read and
-  release GitHub Apps, install them only on required repositories, store and rotate
-  their private keys as protected secrets, and test that each App is denied outside
-  its intended repositories and permissions.
+- **P4.1a Add cross-repository Apps — implemented locally; live acceptance
+  pending.** A versioned contract separates an organization-owned, contents-read
+  CI reader installed only on `jarvis` from a contents-write/pull-request-write
+  release bot installed only on `jarvis-live`. A protected manual and quarterly
+  workflow mints short-lived tokens, rejects personal ownership, all-repository or
+  extra installations, and permission drift, then retains secret-free evidence.
+  The runbook covers registration, selected-repository installation, protected
+  App IDs and private keys, one-key-at-a-time rotation, and quarterly review.
+  Creating the organization-owned Apps, installing them after the deferred
+  organization/repository move, and retaining the first passing live audit remain
+  required before marking the item complete.
 - **P4.1b Centralize reusable automation — complete locally.** Stable validation
   jobs now live in the public, credential-free `joshuamyers22/jarvis-automation`
   repository. Its reusable workflow accepts only the hardcoded Jarvis caller,

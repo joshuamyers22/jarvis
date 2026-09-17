@@ -122,7 +122,7 @@ output "airflow_secrets_backend" {
 
 output "notebook_efs" {
   description = "Shared notebook EFS details. Null when enable_notebook_efs is false."
-  value       = var.enable_notebook_efs ? {
+  value = var.enable_notebook_efs ? {
     managed_by_this_stack          = local.create_notebook_efs
     file_system_id                 = local.notebook_efs_id
     access_point_id                = local.notebook_efs_access_point_id
@@ -135,6 +135,6 @@ output "notebook_efs" {
     shared_environment             = !local.create_notebook_efs
     sharing_approval               = var.notebook_efs_shared_environment_approval
     backup_reference               = local.create_notebook_efs ? "aws_efs_backup_policy.notebooks" : var.notebook_efs_shared_backup_reference
-    fstab_entry                     = "${local.notebook_efs_id}:/ /mnt/jarvis-notebooks efs _netdev,tls,iam,accesspoint=${local.notebook_efs_access_point_id},noresvport 0 0"
+    fstab_entry                    = "${local.notebook_efs_id}:/ /mnt/jarvis-notebooks efs _netdev,tls,iam,accesspoint=${local.notebook_efs_access_point_id},noresvport 0 0"
   } : null
 }

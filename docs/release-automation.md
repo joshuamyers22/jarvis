@@ -111,6 +111,61 @@ repository, numeric repository/owner identifiers where supported, the
 `production` environment, and `refs/heads/main`. The workflow-side predicates
 are defense in depth, not a replacement for cloud-side claim restrictions.
 
+## Cross-repository GitHub Apps
+
+The authoritative least-privilege contract is
+`config/github-apps.toml`. It defines two independent principals:
+
+| App | Selected repositories | Repository permissions |
+|---|---|---|
+| `jarvis-ci-reader` | `jarvis` | Contents read; metadata read |
+| `jarvis-release-bot` | `jarvis-live` | Contents write; pull requests write; metadata read |
+
+The Apps must be owned by the same GitHub organization that owns Jarvis. A
+personal App, an all-repositories installation, or an installation on any extra
+repository fails the automated audit. The release App has no administration,
+Actions, environments, secrets, members, deployments, or merge authority. The
+reader has no write permission. Webhooks are disabled for both Apps because
+Jarvis mints installation tokens only from explicit workflows.
+
+Create and install the Apps in this order:
+
+1. Transfer or create `jarvis` and `jarvis-live` under the production
+   organization. Do not register a personal substitute.
+2. In the organization's developer settings, register `jarvis-ci-reader` with
+   only repository `Contents: Read-only`; install it on selected repository
+   `jarvis` only.
+3. Register a separate `jarvis-release-bot` with only repository
+   `Contents: Read and write` and `Pull requests: Read and write`; install it on
+   selected repository `jarvis-live` only.
+4. Create the protected `github-app-audit` environment in Jarvis. Restrict it to
+   `main`, require a release-manager reviewer, prevent self-review, and disable
+   administrator bypass where the repository plan supports it.
+5. Add `JARVIS_CI_READER_APP_ID` and `JARVIS_RELEASE_BOT_APP_ID` as environment
+   variables. Add `JARVIS_CI_READER_PRIVATE_KEY` and
+   `JARVIS_RELEASE_BOT_PRIVATE_KEY` as environment secrets. Never place a key in
+   a repository, Actions variable, Terraform value, artifact, or runtime host.
+6. Manually run `github-app-boundary`. Approve the environment as a different
+   release manager and retain both passing JSON artifacts with the change
+   record. The workflow also runs quarterly and requires approval before it can
+   read either key.
+
+`scripts/github_app_boundary.py` uses each short-lived token to inspect its own
+installation. It fails unless the owner is an organization, repository selection
+is `selected`, the complete installed-repository set exactly matches the
+contract, and the complete permission set is exact. The evidence contains App
+and installation metadata but never the token or private key.
+
+Rotate each private key at least quarterly and immediately after suspected
+exposure: generate a second key, replace only that App's protected environment
+secret, run the audit, then revoke the old key. Never rotate both Apps in one
+change. Review App ownership, installation repositories, permissions, recent
+token use, environment reviewers, and retained evidence during the same audit.
+
+Changing an App boundary requires a reviewed change to
+`config/github-apps.toml` first, followed by the GitHub setting change and a
+passing audit. Adding a repository speculatively is prohibited.
+
 ## Acceptance check
 
 After the repository settings and GCP environment variables exist:
