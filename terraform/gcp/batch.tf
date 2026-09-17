@@ -3,9 +3,10 @@
 # at execution time, so one definition serves every job.
 # =============================================================================
 resource "google_cloud_run_v2_job" "research" {
-  name     = "research-job"
-  location = var.region
-  labels   = local.common_labels
+  name                = "research-job"
+  location            = var.region
+  labels              = local.common_labels
+  deletion_protection = var.workload_deletion_protection
 
   template {
     task_count = 1

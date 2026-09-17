@@ -17,6 +17,19 @@ mock_provider "google" {
       name = "projects/jarvis-research-dev/roles/jarvisInstancePower"
     }
   }
+
+  mock_resource "google_monitoring_notification_channel" {
+    defaults = {
+      name = "projects/jarvis-research-dev/notificationChannels/123456789"
+    }
+  }
+
+  mock_data "google_project" {
+    defaults = {
+      number          = "1234567890"
+      billing_account = "000000-000000-000000"
+    }
+  }
 }
 mock_provider "random" {}
 
@@ -24,6 +37,10 @@ variables {
   project_id                 = "jarvis-research-dev"
   env                        = "dev"
   bucket_name                = "jarvis-research-dev-data"
+  billing_account_id         = "000000-000000-000000"
+  alert_email                = "operations@example.com"
+  monthly_budget_usd         = 500
+  labels                     = { owner = "platform", cost_center = "research" }
   network_self_link          = "projects/jarvis-research-dev/global/networks/research-dev-vpc"
   subnetwork_self_link       = "projects/jarvis-research-dev/regions/us-central1/subnetworks/research-dev-workloads"
   deployer_principals        = ["group:platform@example.com"]

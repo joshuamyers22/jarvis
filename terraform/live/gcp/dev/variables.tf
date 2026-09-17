@@ -26,6 +26,21 @@ variable "bucket_name" {
   description = "Globally unique development data bucket name."
 }
 
+variable "billing_account_id" {
+  type        = string
+  description = "Cloud Billing account that owns the development budget."
+}
+
+variable "alert_email" {
+  type        = string
+  description = "Operational recipient for development budget and quota alerts."
+}
+
+variable "monthly_budget_usd" {
+  type        = number
+  description = "Approved whole-dollar monthly development budget."
+}
+
 variable "deployer_principals" {
   type        = set(string)
   description = "Named principals allowed to impersonate the development Terraform deployer."

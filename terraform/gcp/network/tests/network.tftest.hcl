@@ -7,6 +7,10 @@ variables {
   subnet_cidr                   = "10.10.0.0/20"
   private_service_address       = "10.10.240.0"
   private_service_prefix_length = 20
+  labels = {
+    owner       = "platform"
+    environment = "prod"
+  }
 }
 
 run "private_network_controls" {
@@ -58,6 +62,22 @@ run "private_network_controls" {
   assert {
     condition     = output.subnet_cidr == "10.10.0.0/20" && output.private_service_cidr == "10.10.240.0/20"
     error_message = "The requested workload and private service ranges must reach module outputs unchanged."
+  }
+
+
+  assert {
+    condition = (
+      output.guardrails.labels["application"] == "jarvis" &&
+      output.guardrails.labels["environment"] == "dev" &&
+      output.guardrails.labels["owner"] == "platform" &&
+      toset(output.guardrails.enabled_services) == toset([
+        "compute.googleapis.com",
+        "dns.googleapis.com",
+        "iap.googleapis.com",
+        "servicenetworking.googleapis.com",
+      ])
+    )
+    error_message = "Network APIs and required environment labels must remain explicit and caller-proof."
   }
 }
 

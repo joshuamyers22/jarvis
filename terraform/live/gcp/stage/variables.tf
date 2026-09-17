@@ -26,6 +26,21 @@ variable "bucket_name" {
   description = "Globally unique staging data bucket name."
 }
 
+variable "billing_account_id" {
+  type        = string
+  description = "Cloud Billing account that owns the staging budget."
+}
+
+variable "alert_email" {
+  type        = string
+  description = "Operational recipient for staging budget and quota alerts."
+}
+
+variable "monthly_budget_usd" {
+  type        = number
+  description = "Approved whole-dollar monthly staging budget."
+}
+
 variable "deployer_principals" {
   type        = set(string)
   description = "Named principals allowed to impersonate the staging Terraform deployer."

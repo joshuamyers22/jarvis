@@ -11,12 +11,70 @@ output "project_id" {
 
 output "configuration" {
   value = {
-    region                 = var.region
-    zone                   = var.zone
-    db_availability_type   = var.db_availability_type
-    db_deletion_protection = var.db_deletion_protection
-    raw_coldline_days      = var.raw_coldline_after_days
-    log_retention_days     = var.log_delete_after_days
+    region                       = var.region
+    zone                         = var.zone
+    db_availability_type         = var.db_availability_type
+    db_deletion_protection       = var.db_deletion_protection
+    workload_deletion_protection = var.workload_deletion_protection
+    raw_coldline_days            = var.raw_coldline_after_days
+    log_retention_days           = var.log_delete_after_days
+  }
+}
+
+output "guardrails" {
+  value = {
+    enabled_services = sort(tolist(local.platform_services))
+    labels           = local.common_labels
+    audit_logging = {
+      service   = google_project_iam_audit_config.all_services.service
+      log_types = sort([for config in google_project_iam_audit_config.all_services.audit_log_config : config.log_type])
+      exemptions = flatten([
+        for config in google_project_iam_audit_config.all_services.audit_log_config :
+        config.exempted_members == null ? [] : config.exempted_members
+      ])
+    }
+    budget = {
+      billing_account      = var.billing_account_id
+      monthly_amount_usd   = var.monthly_budget_usd
+      thresholds           = local.budget_thresholds
+      notification_channel = google_monitoring_notification_channel.operations_email.name
+    }
+    quota_alerts = {
+      warning_threshold = var.quota_warning_threshold
+      utilization       = google_monitoring_alert_policy.quota_utilization.display_name
+      exceeded          = google_monitoring_alert_policy.quota_exceeded.display_name
+    }
+    deletion_protection = {
+      cloud_sql     = google_sql_database_instance.airflow.deletion_protection
+      cloud_run_job = google_cloud_run_v2_job.research.deletion_protection
+      compute = {
+        control  = google_compute_instance.control.deletion_protection
+        feed     = google_compute_instance.feed.deletion_protection
+        notebook = google_compute_instance.notebook.deletion_protection
+      }
+      bucket_force_destroy = google_storage_bucket.data.force_destroy
+    }
+    shielded_compute = {
+      for name, instance in {
+        control  = google_compute_instance.control
+        feed     = google_compute_instance.feed
+        notebook = google_compute_instance.notebook
+        } : name => {
+        secure_boot          = instance.shielded_instance_config[0].enable_secure_boot
+        vtpm                 = instance.shielded_instance_config[0].enable_vtpm
+        integrity_monitoring = instance.shielded_instance_config[0].enable_integrity_monitoring
+      }
+    }
+    organization_policies = {
+      required   = sort(tolist(local.required_organization_policies))
+      optional   = sort(tolist(local.optional_organization_policies))
+      managed_by = "organization landing-zone administrators outside this module"
+    }
+    external_iam = {
+      principal = google_service_account.roles["deployer"].email
+      scope     = "billingAccounts/${var.billing_account_id}"
+      role      = "roles/billing.costsManager"
+    }
   }
 }
 

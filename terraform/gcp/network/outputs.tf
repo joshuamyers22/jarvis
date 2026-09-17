@@ -48,3 +48,10 @@ output "security_controls" {
     nat_error_logging_enabled  = google_compute_router_nat.egress.log_config[0].enable
   }
 }
+
+output "guardrails" {
+  value = {
+    enabled_services = sort(tolist(local.required_services))
+    labels           = local.common_labels
+  }
+}

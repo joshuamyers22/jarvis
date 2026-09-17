@@ -11,20 +11,24 @@ terraform {
 
 locals {
   name_prefix = "research-${var.env}"
-  common_labels = {
-    env       = var.env
-    component = "research-network"
-    managed   = "terraform"
+  required_labels = {
+    application = "jarvis"
+    component   = "research-network"
+    environment = var.env
+    managed_by  = "terraform"
   }
-}
+  common_labels = merge(var.labels, local.required_labels)
 
-resource "google_project_service" "required" {
-  for_each = toset([
+  required_services = toset([
     "compute.googleapis.com",
     "dns.googleapis.com",
     "iap.googleapis.com",
     "servicenetworking.googleapis.com",
   ])
+}
+
+resource "google_project_service" "required" {
+  for_each = local.required_services
 
   project            = var.project_id
   service            = each.value

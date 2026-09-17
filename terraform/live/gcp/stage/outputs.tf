@@ -46,6 +46,19 @@ output "iam_contract" {
   value = module.platform.iam_contract
 }
 
+output "guardrails" {
+  value = merge(module.platform.guardrails, {
+    enabled_services = sort(tolist(setunion(
+      toset(module.platform.guardrails.enabled_services),
+      toset(module.network.guardrails.enabled_services),
+    )))
+    resource_labels = {
+      platform = module.platform.guardrails.labels
+      network  = module.network.guardrails.labels
+    }
+  })
+}
+
 output "instances" {
   value = module.platform.instances
 }

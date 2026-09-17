@@ -1,9 +1,24 @@
-mock_provider "google" {}
+mock_provider "google" {
+  mock_resource "google_monitoring_notification_channel" {
+    defaults = {
+      name = "projects/jarvis-research-stage/notificationChannels/123456789"
+    }
+  }
+  mock_data "google_project" {
+    defaults = {
+      number          = "1234567891"
+      billing_account = "000000-000000-000000"
+    }
+  }
+}
 mock_provider "random" {}
 
 variables {
   project_id                 = "jarvis-research-stage"
   bucket_name                = "jarvis-research-stage-data"
+  billing_account_id         = "000000-000000-000000"
+  alert_email                = "operations@example.com"
+  monthly_budget_usd         = 1000
   deployer_principals        = ["group:platform@example.com"]
   operator_principals        = ["group:operators@example.com"]
   github_repository          = "example/jarvis"
@@ -32,6 +47,31 @@ run "staging_boundary" {
   assert {
     condition     = output.configuration.db_availability_type == "ZONAL" && output.configuration.db_deletion_protection
     error_message = "Staging must keep deletion protection while using a zonal database."
+  }
+
+  assert {
+    condition = (
+      output.configuration.workload_deletion_protection &&
+      output.guardrails.budget.monthly_amount_usd == 1000 &&
+      output.guardrails.quota_alerts.warning_threshold == 0.8 &&
+      output.guardrails.deletion_protection.cloud_sql &&
+      output.guardrails.deletion_protection.cloud_run_job &&
+      alltrue(values(output.guardrails.deletion_protection.compute))
+    )
+    error_message = "Staging guardrails must protect workloads and enforce its approved budget and quota alerts."
+  }
+
+  assert {
+    condition = (
+      length(output.guardrails.enabled_services) == 17 &&
+      contains(output.guardrails.enabled_services, "billingbudgets.googleapis.com") &&
+      contains(output.guardrails.enabled_services, "monitoring.googleapis.com") &&
+      output.guardrails.audit_logging.service == "allServices" &&
+      toset(output.guardrails.audit_logging.log_types) == toset(["ADMIN_READ", "DATA_READ", "DATA_WRITE"]) &&
+      output.guardrails.resource_labels.platform["environment"] == "stage" &&
+      output.guardrails.resource_labels.network["environment"] == "stage"
+    )
+    error_message = "Staging must carry the complete API, audit, and labeling baseline."
   }
 
   assert {

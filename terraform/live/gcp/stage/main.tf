@@ -18,14 +18,24 @@ terraform {
 }
 
 provider "google" {
-  project = var.project_id
-  region  = var.region
-  zone    = var.zone
+  project               = var.project_id
+  region                = var.region
+  zone                  = var.zone
+  billing_project       = var.project_id
+  user_project_override = true
+  default_labels        = local.guardrail_labels
 }
 
 locals {
   environment  = "stage"
   state_prefix = "environments/stage"
+  guardrail_labels = {
+    application = "jarvis"
+    cost_center = "research"
+    environment = local.environment
+    managed_by  = "terraform"
+    owner       = "platform"
+  }
 }
 
 check "zone_region_boundary" {
@@ -44,35 +54,40 @@ module "network" {
   subnet_cidr                   = "10.20.0.0/20"
   private_service_address       = "10.20.240.0"
   private_service_prefix_length = 20
+  labels                        = local.guardrail_labels
 }
 
 module "platform" {
   source = "../../../gcp"
 
-  env                        = local.environment
-  project_id                 = var.project_id
-  region                     = var.region
-  zone                       = var.zone
-  bucket_name                = var.bucket_name
-  deployer_principals        = var.deployer_principals
-  operator_principals        = var.operator_principals
-  github_repository          = var.github_repository
-  github_repository_id       = var.github_repository_id
-  github_repository_owner_id = var.github_repository_owner_id
-  github_environment         = "staging"
-  github_ref                 = "refs/heads/main"
-  network_self_link          = module.network.network_self_link
-  subnetwork_self_link       = module.network.subnetwork_self_link
-  db_tier                    = var.db_tier
-  db_availability_type       = "ZONAL"
-  db_deletion_protection     = true
-  control_machine_type       = var.control_machine_type
-  feed_machine_type          = var.feed_machine_type
-  notebook_machine_type      = var.notebook_machine_type
-  raw_coldline_after_days    = 60
-  log_delete_after_days      = 90
+  env                          = local.environment
+  project_id                   = var.project_id
+  region                       = var.region
+  zone                         = var.zone
+  bucket_name                  = var.bucket_name
+  billing_account_id           = var.billing_account_id
+  alert_email                  = var.alert_email
+  monthly_budget_usd           = var.monthly_budget_usd
+  labels                       = local.guardrail_labels
+  deployer_principals          = var.deployer_principals
+  operator_principals          = var.operator_principals
+  github_repository            = var.github_repository
+  github_repository_id         = var.github_repository_id
+  github_repository_owner_id   = var.github_repository_owner_id
+  github_environment           = "staging"
+  github_ref                   = "refs/heads/main"
+  network_self_link            = module.network.network_self_link
+  subnetwork_self_link         = module.network.subnetwork_self_link
+  db_tier                      = var.db_tier
+  db_availability_type         = "ZONAL"
+  db_deletion_protection       = true
+  workload_deletion_protection = true
+  control_machine_type         = var.control_machine_type
+  feed_machine_type            = var.feed_machine_type
+  notebook_machine_type        = var.notebook_machine_type
+  raw_coldline_after_days      = 60
+  log_delete_after_days        = 90
 
-  depends_on = [module.network]
 }
 
 resource "google_dns_record_set" "instances" {

@@ -311,7 +311,7 @@ Exit gate:
 
 Goal: make environment creation repeatable and safe.
 
-Implementation status (2026-09-16): P1.1 through P1.4 are implemented and
+Implementation status (2026-09-16): P1.1 through P1.5 are implemented and
 locally validated. The protected state bucket and live roots still require
 authorized, reviewed applies in their selected GCP projects.
 
@@ -336,9 +336,15 @@ authorized, reviewed applies in their selected GCP projects.
   supported; named human operators receive only conditional IAP SSH, OS Login,
   instance power, and the three required VM actAs grants. Native positive/negative
   IAM tests run in CI.
-- **P1.5 Add project guardrails.** Enable required APIs, labels, audit logs, budgets,
-  quota alerts, and environment-specific deletion protection. Record which
-  organization policies are required versus optional.
+- **P1.5 Add project guardrails — complete locally.** Enable required APIs,
+  labels, audit logs, budgets, quota alerts, and environment-specific deletion
+  protection. Record which organization policies are required versus optional.
+  All live roots now expose
+  a tested guardrail contract covering 17 APIs, mandatory ownership/cost labels,
+  all-service Data Access audit logs, project-scoped budget thresholds, allocation
+  quota warning/exceeded alerts, and explicit dev versus stage/prod deletion
+  policies. The billing-account IAM grant, email-channel verification, and parent
+  organization policies remain reviewed apply prerequisites.
 - **P1.6 Decide cross-project data access.** Define approved shared-data buckets or
   BigQuery datasets and grant only explicit reader/writer roles; do not embed project
   allowlists in Python.

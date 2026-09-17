@@ -23,6 +23,21 @@ variable "region" {
   description = "Region for the workload subnet, router, and NAT gateway."
 }
 
+variable "labels" {
+  type        = map(string)
+  description = "Additional ownership and cost-allocation labels. Required network identity labels cannot be overridden."
+  default     = {}
+
+  validation {
+    condition = alltrue([
+      for key, value in var.labels :
+      can(regex("^[a-z][a-z0-9_-]{0,62}$", key)) &&
+      can(regex("^[a-z0-9_-]{0,63}$", value))
+    ])
+    error_message = "Label keys and values must satisfy Google Cloud label syntax."
+  }
+}
+
 variable "subnet_cidr" {
   type        = string
   description = "Primary IPv4 CIDR for private workload instances."

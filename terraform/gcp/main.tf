@@ -14,24 +14,37 @@ terraform {
 
 locals {
   name_prefix = "research-${var.env}"
-  common_labels = {
-    env       = var.env
-    component = "research-platform"
-    managed   = "terraform"
+  required_labels = {
+    application = "jarvis"
+    component   = "research-platform"
+    environment = var.env
+    managed_by  = "terraform"
   }
-}
+  # Callers may add ownership and cost-allocation labels, but cannot replace
+  # the identity labels that make resources auditable across projects.
+  common_labels = merge(var.labels, local.required_labels)
 
-resource "google_project_service" "required" {
-  for_each = toset([
-    "run.googleapis.com",
-    "sqladmin.googleapis.com",
-    "secretmanager.googleapis.com",
+  platform_services = toset([
     "artifactregistry.googleapis.com",
+    "billingbudgets.googleapis.com",
+    "cloudbilling.googleapis.com",
     "cloudresourcemanager.googleapis.com",
     "iam.googleapis.com",
     "iamcredentials.googleapis.com",
+    "logging.googleapis.com",
+    "monitoring.googleapis.com",
+    "run.googleapis.com",
+    "secretmanager.googleapis.com",
+    "serviceusage.googleapis.com",
+    "sqladmin.googleapis.com",
     "sts.googleapis.com",
   ])
+}
+
+resource "google_project_service" "required" {
+  for_each = local.platform_services
+
+  project            = var.project_id
   service            = each.key
   disable_on_destroy = false
 }

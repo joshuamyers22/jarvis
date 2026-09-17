@@ -4,11 +4,11 @@ These roots are the only supported entry points for deploying Jarvis on GCP.
 Each root hardcodes its environment identity, address space, and remote-state
 prefix while composing the reusable platform and private-network modules.
 
-| Root | State prefix | Workload / private-service CIDRs | Cloud SQL policy | Raw/log lifecycle |
+| Root | State prefix | Workload / private-service CIDRs | Deletion protection | Raw/log lifecycle |
 |---|---|---|---|---|
-| `dev` | `environments/dev` | `10.10.0.0/20` / `10.10.240.0/20` | Zonal, deletion protection off | 30/30 days |
-| `stage` | `environments/stage` | `10.20.0.0/20` / `10.20.240.0/20` | Zonal, deletion protection on | 60/90 days |
-| `prod` | `environments/prod` | `10.30.0.0/20` / `10.30.240.0/20` | Regional, deletion protection on | 90/180 days |
+| `dev` | `environments/dev` | `10.10.0.0/20` / `10.10.240.0/20` | Off for SQL, VMs, and batch job | 30/30 days |
+| `stage` | `environments/stage` | `10.20.0.0/20` / `10.20.240.0/20` | On for SQL, VMs, and batch job | 60/90 days |
+| `prod` | `environments/prod` | `10.30.0.0/20` / `10.30.240.0/20` | On for SQL, VMs, and batch job | 90/180 days |
 
 Project IDs and data buckets are explicit inputs. Use a distinct GCP project for
 every root; its ID must end in `-dev`, `-stage`, or `-prod` to match the root.
@@ -23,6 +23,12 @@ repository/owner IDs, the root's protected GitHub environment, and `main`.
 Follow the [identity handoff and GitHub setup](../../../docs/gcp-identity.md)
 before switching the env file to deployer impersonation.
 
+Each root also owns the P1.5 project guardrails: explicit APIs, resource labels,
+all-service Data Access audit logging, a reviewed monthly budget, and allocation
+quota warning/exceeded alerts. Complete the external billing IAM, notification
+verification, and organization-policy steps in the
+[guardrail runbook](../../../docs/gcp-guardrails.md) before applying.
+
 ## Configure an environment
 
 P1.1 must be applied first so `JARVIS_TFSTATE_BUCKET` exists and the deployer
@@ -36,8 +42,9 @@ chmod 600 terraform/live/gcp/dev/.env.live
 
 Repeat for `stage` and `prod` only when those environments are ready. Env files
 contain Terraform inputs, named deployer/operator principals, immutable GitHub
-IDs, and credential references. Prefer ADC plus short-lived service-account
-impersonation; never paste credential JSON or a GitHub token into them.
+IDs, approved budget inputs, alert routing, and credential references. Prefer
+ADC plus short-lived service-account impersonation; never paste credential JSON
+or a GitHub token into them. Budgets notify but don't stop spending.
 
 ## Plan and apply
 

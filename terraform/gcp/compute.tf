@@ -14,11 +14,12 @@ locals {
 }
 
 resource "google_compute_instance" "control" {
-  name         = "${local.name_prefix}-control"
-  machine_type = var.control_machine_type
-  zone         = var.zone
-  labels       = local.common_labels
-  tags         = ["research", "control"]
+  name                = "${local.name_prefix}-control"
+  machine_type        = var.control_machine_type
+  zone                = var.zone
+  labels              = local.common_labels
+  tags                = ["research", "control"]
+  deletion_protection = var.workload_deletion_protection
 
   boot_disk {
     initialize_params {
@@ -43,16 +44,23 @@ resource "google_compute_instance" "control" {
     block-project-ssh-keys = "TRUE"
   }
 
+  shielded_instance_config {
+    enable_secure_boot          = true
+    enable_vtpm                 = true
+    enable_integrity_monitoring = true
+  }
+
   metadata_startup_script   = local.startup_script
   allow_stopping_for_update = true
 }
 
 resource "google_compute_instance" "feed" {
-  name         = "${local.name_prefix}-feed"
-  machine_type = var.feed_machine_type
-  zone         = var.zone
-  labels       = local.common_labels
-  tags         = ["research", "feed"]
+  name                = "${local.name_prefix}-feed"
+  machine_type        = var.feed_machine_type
+  zone                = var.zone
+  labels              = local.common_labels
+  tags                = ["research", "feed"]
+  deletion_protection = var.workload_deletion_protection
 
   boot_disk {
     initialize_params {
@@ -76,16 +84,24 @@ resource "google_compute_instance" "feed" {
     block-project-ssh-keys = "TRUE"
   }
 
+
+  shielded_instance_config {
+    enable_secure_boot          = true
+    enable_vtpm                 = true
+    enable_integrity_monitoring = true
+  }
+
   metadata_startup_script   = local.startup_script
   allow_stopping_for_update = true
 }
 
 resource "google_compute_instance" "notebook" {
-  name         = "${local.name_prefix}-notebook"
-  machine_type = var.notebook_machine_type
-  zone         = var.zone
-  labels       = local.common_labels
-  tags         = ["research", "notebook"]
+  name                = "${local.name_prefix}-notebook"
+  machine_type        = var.notebook_machine_type
+  zone                = var.zone
+  labels              = local.common_labels
+  tags                = ["research", "notebook"]
+  deletion_protection = var.workload_deletion_protection
   # Started on demand. Terraform manages its existence, not its power state.
   desired_status = "TERMINATED"
 
@@ -109,6 +125,13 @@ resource "google_compute_instance" "notebook" {
   metadata = {
     enable-oslogin         = "TRUE"
     block-project-ssh-keys = "TRUE"
+  }
+
+
+  shielded_instance_config {
+    enable_secure_boot          = true
+    enable_vtpm                 = true
+    enable_integrity_monitoring = true
   }
 
   metadata_startup_script   = local.startup_script

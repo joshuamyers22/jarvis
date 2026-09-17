@@ -24,6 +24,12 @@ deployer access to the remote-state bucket through the bootstrap stack, and use
 impersonation for every later plan and apply. GitHub publishing uses the separate
 CI identity and repository/environment/ref-bound OIDC federation.
 
+Before a live apply, complete the
+[GCP guardrail prerequisites](gcp-guardrails.md): approve the environment's
+monthly budget, grant the deployer Billing Account Costs Manager on the selected
+billing account, and arrange organization-policy evidence. After the apply,
+verify the Monitoring email channel and deliver a test notification.
+
 ```bash
 scripts/gcp-live.sh dev validate
 scripts/gcp-live.sh dev plan
@@ -73,6 +79,9 @@ start/stop, and actAs on the three VM service accounts.
 - Monitor feed lag, reconnects, flush failures, and dropped records.
 - Monitor database backups, restores, capacity, and connections.
 - Monitor object growth, lifecycle rules, batch failures, quotas, and cost.
+- Treat budget and quota notifications as incidents: acknowledge delivery,
+  identify the affected environment, and record any approved budget or quota
+  change in the infrastructure review.
 - Confirm every role uses the intended immutable image tag.
 
 Useful commands:

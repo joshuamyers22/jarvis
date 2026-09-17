@@ -33,6 +33,62 @@ variable "bucket_name" {
   description = "Globally unique data bucket name."
 }
 
+variable "billing_account_id" {
+  type        = string
+  description = "Cloud Billing account that owns the environment budget."
+
+  validation {
+    condition     = can(regex("^[0-9A-F]{6}-[0-9A-F]{6}-[0-9A-F]{6}$", upper(var.billing_account_id)))
+    error_message = "billing_account_id must use the XXXXXX-XXXXXX-XXXXXX format."
+  }
+}
+
+variable "alert_email" {
+  type        = string
+  description = "Operational email recipient for budget and quota notifications."
+
+  validation {
+    condition     = can(regex("^[^@[:space:]]+@[^@[:space:]]+\\.[^@[:space:]]+$", var.alert_email))
+    error_message = "alert_email must be a valid email address."
+  }
+}
+
+variable "monthly_budget_usd" {
+  type        = number
+  description = "Approved whole-dollar monthly budget for this environment."
+
+  validation {
+    condition     = var.monthly_budget_usd > 0 && floor(var.monthly_budget_usd) == var.monthly_budget_usd
+    error_message = "monthly_budget_usd must be a positive whole-dollar amount."
+  }
+}
+
+variable "quota_warning_threshold" {
+  type        = number
+  description = "Allocation quota utilization ratio that opens a warning incident."
+  default     = 0.8
+
+  validation {
+    condition     = var.quota_warning_threshold >= 0.5 && var.quota_warning_threshold < 1
+    error_message = "quota_warning_threshold must be at least 0.5 and less than 1.0."
+  }
+}
+
+variable "labels" {
+  type        = map(string)
+  description = "Additional ownership and cost-allocation labels. Required identity labels cannot be overridden."
+  default     = {}
+
+  validation {
+    condition = alltrue([
+      for key, value in var.labels :
+      can(regex("^[a-z][a-z0-9_-]{0,62}$", key)) &&
+      can(regex("^[a-z0-9_-]{0,63}$", value))
+    ])
+    error_message = "Label keys and values must satisfy Google Cloud label syntax."
+  }
+}
+
 variable "network_self_link" {
   type        = string
   description = "Self-link of the existing VPC used by VMs and private service access."
@@ -62,6 +118,12 @@ variable "db_availability_type" {
 variable "db_deletion_protection" {
   type        = bool
   description = "Protect the Cloud SQL instance from accidental deletion."
+  default     = true
+}
+
+variable "workload_deletion_protection" {
+  type        = bool
+  description = "Protect Compute Engine instances and the Cloud Run job from Terraform deletion."
   default     = true
 }
 
