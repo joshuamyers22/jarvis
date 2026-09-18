@@ -564,7 +564,7 @@ exercise remain evidence.
   organization/repository move, and retaining the first passing live audit remain
   required before marking the item complete.
 - **P4.1b Centralize reusable automation — complete locally.** Stable validation
-  jobs now live in the public, credential-free `joshuamyers22/jarvis-automation`
+  jobs now live in the public, credential-free `qtrpartners/jarvis-automation`
   repository. Its reusable workflow accepts only the hardcoded Jarvis caller,
   declares no inputs or secrets, repeats read-only token permissions on every job,
   and has no environment, OIDC, registry-login, publishing, or deployment authority.

@@ -23,7 +23,7 @@ request cannot populate a cache consumed by a privileged build.
 ## Centralized validation
 
 Stable validation logic lives in the public, credential-free
-[`joshuamyers22/jarvis-automation`](https://github.com/joshuamyers22/jarvis-automation)
+[`qtrpartners/jarvis-automation`](https://github.com/qtrpartners/jarvis-automation)
 repository. GitHub permits a public caller such as Jarvis to use reusable
 workflows only from public repositories, so confidentiality cannot be the access
 boundary. Instead, the called workflow hard-fails unless `github.repository` is
