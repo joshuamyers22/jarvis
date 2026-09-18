@@ -39,6 +39,9 @@ jobs:
       - name: Verify exact CI reader boundary
         env:
           GITHUB_APP_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_APP_ID: ${{ vars.JARVIS_CI_READER_APP_ID }}
+          GITHUB_APP_PRIVATE_KEY: ${{ secrets.JARVIS_CI_READER_PRIVATE_KEY }}
+          GITHUB_APP_INSTALLATION_ID: ${{ steps.app-token.outputs.installation-id }}
         run: >-
           python scripts/github_app_boundary.py
           --principal ci_reader
@@ -78,6 +81,9 @@ jobs:
       - name: Verify exact release bot boundary
         env:
           GITHUB_APP_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_APP_ID: ${{ vars.JARVIS_RELEASE_BOT_APP_ID }}
+          GITHUB_APP_PRIVATE_KEY: ${{ secrets.JARVIS_RELEASE_BOT_PRIVATE_KEY }}
+          GITHUB_APP_INSTALLATION_ID: ${{ steps.app-token.outputs.installation-id }}
         run: >-
           python scripts/github_app_boundary.py
           --principal release_bot

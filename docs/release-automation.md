@@ -118,8 +118,8 @@ The authoritative least-privilege contract is
 
 | App | Selected repositories | Repository permissions |
 |---|---|---|
-| `jarvis-ci-reader` | `jarvis` | Contents read; metadata read |
-| `jarvis-release-bot` | `jarvis-live` | Contents write; pull requests write; metadata read |
+| `qtrpartners-jarvis-ci-reader` | `jarvis` | Contents read; metadata read |
+| `qtrpartners-jarvis-release-bot` | `jarvis-live` | Contents write; pull requests write; metadata read |
 
 The Apps must be owned by the same GitHub organization that owns Jarvis. A
 personal App, an all-repositories installation, or an installation on any extra
@@ -132,10 +132,10 @@ Create and install the Apps in this order:
 
 1. Transfer or create `jarvis` and `jarvis-live` under the production
    organization. Do not register a personal substitute.
-2. In the organization's developer settings, register `jarvis-ci-reader` with
+2. In the organization's developer settings, register `qtrpartners-jarvis-ci-reader` with
    only repository `Contents: Read-only`; install it on selected repository
    `jarvis` only.
-3. Register a separate `jarvis-release-bot` with only repository
+3. Register a separate `qtrpartners-jarvis-release-bot` with only repository
    `Contents: Read and write` and `Pull requests: Read and write`; install it on
    selected repository `jarvis-live` only.
 4. Create the protected `github-app-audit` environment in Jarvis. Restrict it to
@@ -150,11 +150,12 @@ Create and install the Apps in this order:
    record. The workflow also runs quarterly and requires approval before it can
    read either key.
 
-`scripts/github_app_boundary.py` uses each short-lived token to inspect its own
-installation. It fails unless the owner is an organization, repository selection
-is `selected`, the complete installed-repository set exactly matches the
-contract, and the complete permission set is exact. The evidence contains App
-and installation metadata but never the token or private key.
+`scripts/github_app_boundary.py` uses a short-lived App JWT to inspect installation
+metadata and each short-lived installation token to enumerate repositories. It
+fails unless the owner is an organization, repository selection is `selected`,
+the complete installed-repository set exactly matches the contract, and the
+complete permission set is exact. The evidence contains App and installation
+metadata but never the token or private key.
 
 Rotate each private key at least quarterly and immediately after suspected
 exposure: generate a second key, replace only that App's protected environment
