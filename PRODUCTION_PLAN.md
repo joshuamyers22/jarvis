@@ -1,7 +1,7 @@
 # Jarvis production functionality plan
 
-Status: active — P4.1 and P4.1b complete locally; P4.1a implementation complete,
-live organization registration and acceptance evidence pending
+Status: active — P4.1 and P4.1b complete locally; P4.1a complete with live
+organization registration and retained acceptance evidence
 Prepared: 2026-09-16
 Reference reviewed: [`sixtycapital/infrastructure`](https://github.com/sixtycapital/infrastructure/tree/b6da17b68b9a2be41dbfa616506b70e30ce62c6e), tag `3.4.1`
 
@@ -552,17 +552,19 @@ exercise remain evidence.
   release cache namespaces are isolated. Repository policy tests enforce this
   split and full-SHA action pins; the runbook defines ruleset, environment,
   variable, cloud-claim, and live acceptance requirements.
-- **P4.1a Add cross-repository Apps — implemented locally; live acceptance
-  pending.** A versioned contract separates an organization-owned, contents-read
+- **P4.1a Add cross-repository Apps — complete.** A versioned contract separates
+  an organization-owned, contents-read
   CI reader installed only on `jarvis` from a contents-write/pull-request-write
   release bot installed only on `jarvis-live`. A protected manual and quarterly
   workflow mints short-lived tokens, rejects personal ownership, all-repository or
   extra installations, and permission drift, then retains secret-free evidence.
   The runbook covers registration, selected-repository installation, protected
   App IDs and private keys, one-key-at-a-time rotation, and quarterly review.
-  Creating the organization-owned Apps, installing them after the deferred
-  organization/repository move, and retaining the first passing live audit remain
-  required before marking the item complete.
+  Both Apps are owned by `qtrpartners`: the CI reader is installed only on
+  `jarvis`, and the release bot is installed only on `jarvis-live`. The first
+  passing live audit retained both secret-free evidence artifacts in
+  [run 35291343716](https://github.com/qtrpartners/jarvis/actions/runs/35291343716)
+  on 2026-09-18.
 - **P4.1b Centralize reusable automation — complete locally.** Stable validation
   jobs now live in the public, credential-free `qtrpartners/jarvis-automation`
   repository. Its reusable workflow accepts only the hardcoded Jarvis caller,
