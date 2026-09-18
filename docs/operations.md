@@ -112,6 +112,9 @@ SBOM and provenance, sign it, and retain release evidence. The release fails
 closed until all required protected GCP variables are configured. Follow the
 [CI and release trust-boundary runbook](release-automation.md) when changing
 workflow permissions, triggers, environments, or cloud federation.
+Use the [staging integration gate](staging-integration.md) to accept that exact
+digest before promotion; the gate exercises both a marked successful partition
+and a loud controlled failure using an ephemeral staging Cloud Run Job.
 
 ## Access
 

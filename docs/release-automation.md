@@ -212,3 +212,10 @@ After the repository settings and GCP environment variables exist:
 P4.2 stops at one validated and signed image digest with retained evidence.
 Staging deployment and production promotion consume that digest in P4.3 and
 P4.4; neither phase is permitted to rebuild it.
+
+P4.3 is implemented by the protected `staging integration` workflow. It
+revalidates the retained manifest and keyless signature, runs the released DAG
+against an ephemeral staging Cloud Run Job, verifies its marked partition and
+remote logs, then proves a controlled execution fails the DAG without
+publishing a partition. Follow the [staging integration runbook](staging-integration.md)
+for identity, variables, cross-project registry access, evidence, and cleanup.

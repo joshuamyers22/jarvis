@@ -125,6 +125,41 @@ def test_release_builds_tests_and_attests_one_gcp_digest() -> None:
     assert source.count("docker/build-push-action@") == 1
 
 
+def test_staging_integration_consumes_release_evidence_without_rebuilding() -> None:
+    source = workflow("staging-integration.yml")
+
+    for required in (
+        "workflow_run:",
+        'workflows: ["release"]',
+        "workflow_run.conclusion == 'success'",
+        "workflow_run.head_repository.full_name == github.repository",
+        "workflow_dispatch:",
+        "environment: staging",
+        "actions: read",
+        "id-token: write",
+        "gh run download",
+        "scripts/gcp_staging_integration.py resolve-release",
+        "ref: ${{ steps.release.outputs.release_commit }}",
+        "persist-credentials: false",
+        "steps.release.outputs.image_reference",
+        "cosign verify",
+        "scripts/gcp_staging_integration.py run",
+        "retention-days: 90",
+    ):
+        assert required in source
+
+    for forbidden in (
+        "docker/build-push-action@",
+        "docker build",
+        "docker push",
+        "push: true",
+        "${{ secrets.",
+    ):
+        assert forbidden not in source
+
+    assert source.count("environment: staging") == 1
+
+
 def test_all_third_party_actions_are_immutable_pins() -> None:
     references = {path: ACTION_REFERENCE.findall(path.read_text()) for path in workflow_paths()}
     assert references

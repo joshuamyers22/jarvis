@@ -1,6 +1,6 @@
 # Jarvis production functionality plan
 
-Status: active — P4.1, P4.1b, and P4.2 complete locally; P4.1a complete with
+Status: active — P4.1, P4.1b, P4.2, and P4.3 complete locally; P4.1a complete with
 live organization registration and retained acceptance evidence
 Prepared: 2026-09-16
 Reference reviewed: [`sixtycapital/infrastructure`](https://github.com/sixtycapital/infrastructure/tree/b6da17b68b9a2be41dbfa616506b70e30ce62c6e), tag `3.4.1`
@@ -535,7 +535,7 @@ Exit gate:
 
 Goal: replace the reference's mutable daily rollout with auditable releases.
 
-Implementation status (2026-09-18): P4.1, P4.1b, and P4.2 are implemented and
+Implementation status (2026-09-18): P4.1, P4.1b, P4.2, and P4.3 are implemented and
 locally validated; P4.1a also has passing live acceptance evidence. The
 automation repository's no-bypass ruleset and policy workflow are live. The
 first GCP build-once release requires a provisioned Artifact Registry and the
@@ -589,9 +589,19 @@ also remains evidence.
   partial failure evidence for 30. AWS and Azure remain validation-only. The
   first live run requires the external GCP project, Artifact Registry, and
   protected OIDC variables before this item can be marked live-complete.
-- **P4.3 Add staging integration tests.** Dispatch a synthetic Cloud Run Job, write a
-  partition and completion marker, verify Airflow remote logs, exercise a controlled
-  failure, and confirm the DAG fails loudly.
+- **P4.3 Add staging integration tests — complete locally; live GCP acceptance
+  pending.** A protected workflow consumes the one retained P4.2 digest and
+  signature, checks out its exact source commit, and runs the real Airflow DAG
+  against a uniquely named ephemeral staging Cloud Run Job. The successful path
+  writes and verifies a synthetic partition, completion marker, minimum size,
+  and new remote Airflow logs. The controlled path raises an explicit probe
+  failure, requires `airflow dags test` to fail loudly, verifies no partition was
+  published, and confirms separate remote logs. A dedicated repository,
+  environment, and ref-bound OIDC identity has staging-only Cloud Run,
+  batch actAs, probe-read, and integration-log permissions; cleanup and
+  secret-free evidence retention are fail-closed. The first live pass requires
+  a provisioned staging project, the protected staging variables, access to the
+  P4.2 producer repository, and a successful P4.2 release artifact.
 - **P4.4 Promote with approval.** Production promotion requires the staging result,
   uses the same digest, records the operator and change, and verifies all deployed
   roles converge on that digest.
