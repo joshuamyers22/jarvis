@@ -1,7 +1,7 @@
 # Jarvis production functionality plan
 
-Status: active — P4.1 and P4.1b complete locally; P4.1a complete with live
-organization registration and retained acceptance evidence
+Status: active — P4.1, P4.1b, and P4.2 complete locally; P4.1a complete with
+live organization registration and retained acceptance evidence
 Prepared: 2026-09-16
 Reference reviewed: [`sixtycapital/infrastructure`](https://github.com/sixtycapital/infrastructure/tree/b6da17b68b9a2be41dbfa616506b70e30ce62c6e), tag `3.4.1`
 
@@ -535,11 +535,12 @@ Exit gate:
 
 Goal: replace the reference's mutable daily rollout with auditable releases.
 
-Implementation status (2026-09-17): P4.1, P4.1a, and P4.1b are implemented and
-locally validated. The automation repository's no-bypass ruleset and policy
-workflow are live; Jarvis environment enforcement, the first approved release,
-the GitHub App registrations and boundary audit, and a live unauthorized-caller
-exercise remain evidence.
+Implementation status (2026-09-18): P4.1, P4.1b, and P4.2 are implemented and
+locally validated; P4.1a also has passing live acceptance evidence. The
+automation repository's no-bypass ruleset and policy workflow are live. The
+first GCP build-once release requires a provisioned Artifact Registry and the
+four protected OIDC publication variables; a live unauthorized-caller exercise
+also remains evidence.
 
 - **P4.1 Separate validation from release — complete locally.** Pull requests and
   main-branch CI run unit, architecture, DAG, Terraform, Packer, image smoke,
@@ -576,8 +577,18 @@ exercise remain evidence.
   Jarvis. The upstream repository enforces read-only default workflow permissions
   and a no-bypass `main` ruleset requiring pull requests, its passing policy check,
   and resolved review threads; a live denied-caller run remains evidence.
-- **P4.2 Build once.** Main-branch CI builds the GCP image, records its digest, creates
-  provenance and an SBOM, signs it with keyless identity, and stores test evidence.
+- **P4.2 Build once — complete locally; live GCP acceptance pending.** After
+  successful read-only main CI, one protected job performs exactly one GCP
+  build-and-push and uses the resulting immutable digest for every later step.
+  It runs all runtime smoke roles by digest, creates an SPDX SBOM, enforces the
+  HIGH/CRITICAL vulnerability and secret policy, signs and verifies the digest
+  with the workflow's keyless Sigstore identity, and publishes signed build
+  provenance. A fail-closed manifest binds the commit, lockfile, Dockerfile,
+  pinned base image, digest, SBOM, provenance bundle, signature verification,
+  smoke log, and scan report; complete evidence is retained for 90 days and
+  partial failure evidence for 30. AWS and Azure remain validation-only. The
+  first live run requires the external GCP project, Artifact Registry, and
+  protected OIDC variables before this item can be marked live-complete.
 - **P4.3 Add staging integration tests.** Dispatch a synthetic Cloud Run Job, write a
   partition and completion marker, verify Airflow remote logs, exercise a controlled
   failure, and confirm the DAG fails loudly.
